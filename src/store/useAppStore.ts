@@ -61,7 +61,7 @@ interface AppState {
   toggleGrid: (pageIndex: number) => void;
   
   // Asset actions
-  addAsset: (asset: Omit<ImageAsset, 'id' | 'createdAt' | 'groupIds' | 'tags'>) => string;
+  addAsset: (asset: Omit<ImageAsset, 'id' | 'createdAt' | 'groupIds' | 'tags'>, id?: string) => string;
   updateAsset: (id: string, updates: Partial<ImageAsset>) => void;
   deleteAsset: (id: string) => void;
   selectAsset: (id: string, multi?: boolean) => void;
@@ -298,8 +298,8 @@ export const useAppStore = create<AppState>()(
     },
     
     // Asset actions
-    addAsset: (assetData) => {
-      const id = uuidv4();
+    addAsset: (assetData, providedId) => {
+      const id = providedId || uuidv4();
       const asset: ImageAsset = {
         ...assetData,
         id,

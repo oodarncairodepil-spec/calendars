@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { ImageLightbox } from "@/components/ImageLightbox";
+import { uploadImageToStorage, deleteImageFromStorage } from "@/lib/storage-upload";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { v4 as uuidv4 } from "uuid";
 
 const Library = () => {
   const {
@@ -73,27 +75,64 @@ const Library = () => {
   };
 
   const handleFileUpload = useCallback(
-    (files: FileList) => {
-      Array.from(files).forEach((file) => {
-        if (!file.type.startsWith("image/")) return;
+    async (files: FileList) => {
+      const filesArray = Array.from(files).filter(file => file.type.startsWith("image/"));
+      
+      if (filesArray.length === 0) return;
 
-        const url = URL.createObjectURL(file);
-        const img = new window.Image();
-        
-        img.onload = () => {
+      setShowAddDialog(false);
+      
+      // Process files sequentially to avoid overwhelming the storage
+      for (const file of filesArray) {
+        try {
+          // Generate asset ID first
+          const assetId = uuidv4();
+          
+          // Create temporary blob URL for preview
+          const tempUrl = URL.createObjectURL(file);
+          const img = new window.Image();
+          
+          // Wait for image to load to get dimensions
+          await new Promise<void>((resolve, reject) => {
+            img.onload = () => resolve();
+            img.onerror = reject;
+            img.src = tempUrl;
+          });
+
+          // Upload to Supabase Storage
+          let finalUrl = tempUrl; // Fallback to blob URL if upload fails
+          try {
+            finalUrl = await uploadImageToStorage(file, assetId);
+            // Clean up blob URL if upload succeeds
+            URL.revokeObjectURL(tempUrl);
+          } catch (uploadError) {
+            console.error('Failed to upload to Supabase Storage, using blob URL:', uploadError);
+            toast({ 
+              title: `Uploaded ${file.name} (local only)`, 
+              description: "Storage bucket not configured. Image will be lost on refresh.",
+              variant: "default"
+            });
+            // Keep blob URL as fallback
+          }
+
+          // Add asset to store with the same ID used for upload
           addAsset({
             name: file.name,
             sourceType: "upload",
-            url,
+            url: finalUrl,
             originalWidth: img.naturalWidth,
             originalHeight: img.naturalHeight,
-          });
+          }, assetId);
+          
           toast({ title: `Added ${file.name}` });
-        };
-        
-        img.src = url;
-      });
-      setShowAddDialog(false);
+        } catch (error) {
+          console.error('Error processing file:', error);
+          toast({ 
+            title: `Failed to add ${file.name}`, 
+            variant: "destructive" 
+          });
+        }
+      }
     },
     [addAsset]
   );
@@ -368,8 +407,15 @@ const Library = () => {
                 <Button
                   variant="destructive"
                   size="sm"
-                  onClick={() => {
-                    selectedAssetIds.forEach(deleteAsset);
+                  onClick={async () => {
+                    // Delete from storage first, then from store
+                    for (const assetId of selectedAssetIds) {
+                      const asset = assets.find(a => a.id === assetId);
+                      if (asset) {
+                        await deleteImageFromStorage(asset);
+                        deleteAsset(assetId);
+                      }
+                    }
                     clearSelection();
                   }}
                 >

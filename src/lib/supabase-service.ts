@@ -5,6 +5,7 @@ import {
   ImageGroup,
   AppStateSnapshot,
 } from './types';
+import { deleteImageFromStorage } from './storage-upload';
 
 // Database types (matching Supabase schema)
 interface DbProject {
@@ -283,18 +284,21 @@ export const deleteProjectFromSupabase = async (projectId: string): Promise<void
 /**
  * Delete an asset from Supabase
  */
-export const deleteAssetFromSupabase = async (assetId: string): Promise<void> => {
-  // Delete relationships first
+export const deleteAssetFromSupabase = async (asset: ImageAsset): Promise<void> => {
+  // Delete from storage first
+  await deleteImageFromStorage(asset);
+
+  // Delete relationships
   await supabase
     .from('asset_groups')
     .delete()
-    .eq('asset_id', assetId);
+    .eq('asset_id', asset.id);
 
   // Delete asset
   const { error } = await supabase
     .from('assets')
     .delete()
-    .eq('id', assetId);
+    .eq('id', asset.id);
 
   if (error) {
     console.error('Error deleting asset:', error);
