@@ -18,6 +18,7 @@ interface DbProject {
   margin: number;
   months: unknown; // JSONB
   months_per_page?: number; // Optional for backward compatibility
+  selected_group_id?: string | null; // Selected group ID for ImagePanel
   created_at: string;
   updated_at: string;
 }
@@ -53,6 +54,7 @@ const dbProjectToProject = (db: DbProject): CalendarProject => ({
   margin: db.margin,
   months: db.months as CalendarProject['months'],
   monthsPerPage: (db as any).months_per_page || 1, // Default to 1 if not present
+  selectedGroupId: (db as any).selected_group_id || null, // Selected group ID for ImagePanel
   createdAt: db.created_at,
   updatedAt: db.updated_at,
 });
@@ -67,6 +69,7 @@ const projectToDbProject = (project: CalendarProject): Omit<DbProject, 'id' | 'c
   margin: project.margin,
   months: project.months as unknown,
   months_per_page: project.monthsPerPage || 1,
+  selected_group_id: project.selectedGroupId || null,
 });
 
 // Convert database asset to app asset

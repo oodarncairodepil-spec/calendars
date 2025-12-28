@@ -60,6 +60,7 @@ export interface CalendarProject {
   margin: number;
   months: MonthPage[];
   monthsPerPage: 1 | 2; // Number of months to display per page
+  selectedGroupId?: string | null; // Selected group ID for ImagePanel
   createdAt: string;
   updatedAt: string;
 }

@@ -50,21 +50,35 @@ const AssetImage = ({ asset }: { asset: ImageAsset }) => {
 };
 
 export const ImagePanel = () => {
-  const { assets, groups, activePageIndex, assignImageToPage, getActivePage, getActiveProject } = useAppStore();
-  const [search, setSearch] = useState("");
-  const [filterGroup, setFilterGroup] = useState<string | null>(null);
+  const { assets, groups, activePageIndex, assignImageToPage, getActivePage, getActiveProject, updateProject } = useAppStore();
+  const [groupSearch, setGroupSearch] = useState("");
+  const [imageSearch, setImageSearch] = useState("");
 
   const page = getActivePage();
   const project = getActiveProject();
   
+  // Get selected group from project settings, or null if not set
+  const selectedGroupId = project?.selectedGroupId || null;
+  
+  // Filter groups based on search
+  const filteredGroups = groupSearch.trim()
+    ? groups.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase()))
+    : [];
+  
   // Only show images if a group is selected
-  const filteredAssets = filterGroup 
+  const filteredAssets = selectedGroupId 
     ? assets.filter((a) => {
-        const matchesSearch = a.name.toLowerCase().includes(search.toLowerCase());
-        const matchesGroup = a.groupIds.includes(filterGroup);
+        const matchesSearch = imageSearch.trim() === "" || a.name.toLowerCase().includes(imageSearch.toLowerCase());
+        const matchesGroup = a.groupIds.includes(selectedGroupId);
         return matchesSearch && matchesGroup;
       })
     : [];
+  
+  const handleSelectGroup = (groupId: string | null) => {
+    if (project) {
+      updateProject(project.id, { selectedGroupId: groupId });
+    }
+  };
 
   const handleAssign = (imageId: string) => {
     assignImageToPage(activePageIndex, imageId);
@@ -85,47 +99,81 @@ export const ImagePanel = () => {
 
   return (
     <div className="flex flex-col h-full">
-      <div className="p-3 border-b">
-        <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Search..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8 h-8 text-sm"
-          />
-        </div>
-        <div className="mt-2">
-          <p className="text-xs text-muted-foreground mb-2">Select a group to view images:</p>
-          <div className="flex gap-1 flex-wrap">
-            {groups.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No groups available. Create groups in the Library page.</p>
-            ) : (
-              groups.map((g) => (
+      <div className="p-3 border-b space-y-3">
+        {/* Group Search */}
+        <div>
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search group name..."
+              value={groupSearch}
+              onChange={(e) => setGroupSearch(e.target.value)}
+              className="pl-8 h-8 text-sm"
+            />
+          </div>
+          {groupSearch.trim() && filteredGroups.length > 0 && (
+            <div className="mt-2 flex gap-1 flex-wrap">
+              {filteredGroups.map((g) => (
                 <button
                   key={g.id}
-                  onClick={() => setFilterGroup(filterGroup === g.id ? null : g.id)}
+                  onClick={() => {
+                    handleSelectGroup(g.id);
+                    setGroupSearch("");
+                  }}
                   className={cn(
                     "px-2 py-0.5 text-xs rounded transition-colors",
-                    filterGroup === g.id 
+                    selectedGroupId === g.id 
                       ? "bg-primary text-primary-foreground" 
                       : "bg-secondary hover:bg-secondary/80"
                   )}
                 >
                   {g.name}
                 </button>
-              ))
-            )}
-          </div>
+              ))}
+            </div>
+          )}
+          {groupSearch.trim() && filteredGroups.length === 0 && (
+            <p className="text-xs text-muted-foreground mt-2">No groups found</p>
+          )}
         </div>
+        
+        {/* Selected Group Display */}
+        {selectedGroupId && (
+          <div className="flex items-center justify-between p-2 bg-muted rounded">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-medium">
+                {groups.find(g => g.id === selectedGroupId)?.name || "Selected Group"}
+              </span>
+            </div>
+            <button
+              onClick={() => handleSelectGroup(null)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Clear
+            </button>
+          </div>
+        )}
+        
+        {/* Image Search - only show if group is selected */}
+        {selectedGroupId && (
+          <div className="relative">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search images..."
+              value={imageSearch}
+              onChange={(e) => setImageSearch(e.target.value)}
+              className="pl-8 h-8 text-sm"
+            />
+          </div>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
-        {!filterGroup ? (
+        {!selectedGroupId ? (
           <div className="text-center py-8 text-muted-foreground">
             <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm font-medium mb-1">Select a group</p>
-            <p className="text-xs">Choose a group from above to view and assign images</p>
+            <p className="text-sm font-medium mb-1">Search for a group</p>
+            <p className="text-xs">Type a group name in the search box above to view images</p>
           </div>
         ) : filteredAssets.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
