@@ -1,6 +1,11 @@
 import { AppStateSnapshot, CURRENT_SCHEMA_VERSION } from './types';
+import {
+  saveToSupabase,
+  loadFromSupabase,
+} from './supabase-service';
 
 const STORAGE_KEY = 'calendar-maker-state';
+const USE_SUPABASE = true; // Set to false to use localStorage instead
 
 /**
  * Save app state to localStorage with debouncing
@@ -15,6 +20,30 @@ export const saveToLocalStorage = (state: AppStateSnapshot): void => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
   } catch (error) {
     console.error('Failed to save to localStorage:', error);
+  }
+};
+
+/**
+ * Save app state to Supabase or localStorage
+ */
+export const saveState = async (state: AppStateSnapshot): Promise<void> => {
+  const snapshot: AppStateSnapshot = {
+    ...state,
+    version: CURRENT_SCHEMA_VERSION,
+    lastUpdated: new Date().toISOString(),
+  };
+
+  if (USE_SUPABASE) {
+    try {
+      await saveToSupabase(snapshot);
+      // Also save to localStorage as backup
+      saveToLocalStorage(snapshot);
+    } catch (error) {
+      console.error('Failed to save to Supabase, falling back to localStorage:', error);
+      saveToLocalStorage(snapshot);
+    }
+  } else {
+    saveToLocalStorage(snapshot);
   }
 };
 
@@ -37,6 +66,29 @@ export const loadFromLocalStorage = (): AppStateSnapshot | null => {
   } catch (error) {
     console.error('Failed to load from localStorage:', error);
     return null;
+  }
+};
+
+/**
+ * Load app state from Supabase or localStorage
+ */
+export const loadState = async (): Promise<AppStateSnapshot | null> => {
+  if (USE_SUPABASE) {
+    try {
+      const state = await loadFromSupabase();
+      if (state) {
+        // Also save to localStorage as backup
+        saveToLocalStorage(state);
+        return state;
+      }
+      // If Supabase returns null, try localStorage
+      return loadFromLocalStorage();
+    } catch (error) {
+      console.error('Failed to load from Supabase, falling back to localStorage:', error);
+      return loadFromLocalStorage();
+    }
+  } else {
+    return loadFromLocalStorage();
   }
 };
 
@@ -105,7 +157,9 @@ export const createDebouncedSave = (delay = 1000) => {
       clearTimeout(timeoutId);
     }
     timeoutId = setTimeout(() => {
-      saveToLocalStorage(state);
+      saveState(state).catch(error => {
+        console.error('Error in debounced save:', error);
+      });
       timeoutId = null;
     }, delay);
   };

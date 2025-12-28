@@ -1,11 +1,12 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, FolderPlus, Image as ImageIcon, Search, X, Grid3X3, Upload, Link as LinkIcon } from "lucide-react";
+import { Plus, Trash2, FolderPlus, Image as ImageIcon, Search, X, Grid3X3, Upload, Link as LinkIcon, CheckSquare, Square, Eye } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { ImageLightbox } from "@/components/ImageLightbox";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +18,8 @@ const Library = () => {
     addAsset,
     deleteAsset,
     selectAsset,
+    selectAssetRange,
+    selectAllAssets,
     clearSelection,
     createGroup,
     addImagesToGroup,
@@ -30,6 +33,8 @@ const Library = () => {
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [urlInput, setUrlInput] = useState("");
   const [isDragging, setIsDragging] = useState(false);
+  const [previewIndex, setPreviewIndex] = useState<number | null>(null);
+  const lastSelectedIndexRef = useRef<number | null>(null);
 
   const filteredAssets = assets.filter((asset) => {
     const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase());
@@ -112,8 +117,60 @@ const Library = () => {
     }
     setNewGroupName("");
     setShowGroupDialog(false);
+    clearSelection();
     toast({ title: "Group created!" });
   };
+
+  const handleAssetClick = (assetId: string, index: number, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    if (e.shiftKey && lastSelectedIndexRef.current !== null) {
+      // Range selection
+      const startIndex = Math.min(lastSelectedIndexRef.current, index);
+      const endIndex = Math.max(lastSelectedIndexRef.current, index);
+      const startId = filteredAssets[startIndex].id;
+      const endId = filteredAssets[endIndex].id;
+      const assetIds = filteredAssets.map(a => a.id);
+      selectAssetRange(startId, endId, assetIds);
+      lastSelectedIndexRef.current = index;
+    } else if (e.metaKey || e.ctrlKey) {
+      // Toggle selection
+      selectAsset(assetId, true);
+      lastSelectedIndexRef.current = index;
+    } else {
+      // Toggle selection (default behavior is now multi-select)
+      selectAsset(assetId, true);
+      lastSelectedIndexRef.current = index;
+    }
+  };
+
+  const handleSelectAll = () => {
+    if (selectedAssetIds.length === filteredAssets.length) {
+      clearSelection();
+    } else {
+      selectAllAssets(filteredAssets.map(a => a.id));
+    }
+  };
+
+  const handleOpenPreview = (assetId: string) => {
+    const index = filteredAssets.findIndex(a => a.id === assetId);
+    if (index !== -1) {
+      setPreviewIndex(index);
+    }
+  };
+
+  const handleClosePreview = () => {
+    setPreviewIndex(null);
+  };
+
+  const handleNavigatePreview = (index: number) => {
+    if (index >= 0 && index < filteredAssets.length) {
+      setPreviewIndex(index);
+    }
+  };
+
+  const allSelected = filteredAssets.length > 0 && selectedAssetIds.length === filteredAssets.length;
+  const someSelected = selectedAssetIds.length > 0 && selectedAssetIds.length < filteredAssets.length;
 
   return (
     <Layout>
@@ -282,27 +339,46 @@ const Library = () => {
             ))}
           </div>
 
-          {selectedAssetIds.length > 0 && (
-            <div className="flex items-center gap-2 ml-auto">
-              <span className="text-sm text-muted-foreground">
-                {selectedAssetIds.length} selected
-              </span>
-              <Button variant="ghost" size="sm" onClick={clearSelection}>
-                Clear
-              </Button>
+          <div className="flex items-center gap-2 ml-auto">
+            {filteredAssets.length > 0 && (
               <Button
-                variant="destructive"
+                variant="ghost"
                 size="sm"
-                onClick={() => {
-                  selectedAssetIds.forEach(deleteAsset);
-                  clearSelection();
-                }}
+                onClick={handleSelectAll}
+                className="gap-2"
               >
-                <Trash2 className="w-4 h-4 mr-2" />
-                Delete
+                {allSelected ? (
+                  <CheckSquare className="w-4 h-4" />
+                ) : someSelected ? (
+                  <Square className="w-4 h-4" />
+                ) : (
+                  <Square className="w-4 h-4" />
+                )}
+                {allSelected ? "Deselect All" : "Select All"}
               </Button>
-            </div>
-          )}
+            )}
+            {selectedAssetIds.length > 0 && (
+              <>
+                <span className="text-sm text-muted-foreground">
+                  {selectedAssetIds.length} selected
+                </span>
+                <Button variant="ghost" size="sm" onClick={clearSelection}>
+                  Clear
+                </Button>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => {
+                    selectedAssetIds.forEach(deleteAsset);
+                    clearSelection();
+                  }}
+                >
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete
+                </Button>
+              </>
+            )}
+          </div>
         </motion.div>
 
         {/* Image Grid */}
@@ -342,7 +418,11 @@ const Library = () => {
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ delay: index * 0.02 }}
-                    onClick={(e) => selectAsset(asset.id, e.metaKey || e.ctrlKey)}
+                    onClick={(e) => handleAssetClick(asset.id, index, e)}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      handleOpenPreview(asset.id);
+                    }}
                     className={cn(
                       "group relative aspect-square rounded-lg overflow-hidden cursor-pointer border-2 transition-all",
                       isSelected
@@ -375,12 +455,54 @@ const Library = () => {
                         {asset.originalWidth}×{asset.originalHeight}
                       </p>
                     </div>
-                    {isSelected && (
-                      <div className="absolute top-2 right-2 w-5 h-5 bg-primary rounded-full flex items-center justify-center">
-                        <svg className="w-3 h-3 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                        </svg>
+                    {/* Checkbox overlay */}
+                    <div
+                      className={cn(
+                        "absolute top-2 left-2 transition-opacity z-10",
+                        isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleAssetClick(asset.id, index, e);
+                      }}
+                    >
+                      <div className={cn(
+                        "w-6 h-6 rounded border-2 flex items-center justify-center transition-all",
+                        isSelected
+                          ? "bg-primary border-primary"
+                          : "bg-background/80 border-border backdrop-blur-sm"
+                      )}>
+                        {isSelected && (
+                          <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
                       </div>
+                    </div>
+                    
+                    {/* Preview button */}
+                    <div
+                      className={cn(
+                        "absolute top-2 right-2 transition-opacity z-10",
+                        "opacity-0 group-hover:opacity-100"
+                      )}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleOpenPreview(asset.id);
+                      }}
+                    >
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 bg-background/80 backdrop-blur-sm hover:bg-background"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    
+                    {/* Selection indicator */}
+                    {isSelected && (
+                      <div className="absolute inset-0 bg-primary/10 pointer-events-none" />
                     )}
                   </motion.div>
                 );
@@ -405,6 +527,17 @@ const Library = () => {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Image Lightbox */}
+        {previewIndex !== null && (
+          <ImageLightbox
+            assets={filteredAssets}
+            currentIndex={previewIndex}
+            isOpen={previewIndex !== null}
+            onClose={handleClosePreview}
+            onNavigate={handleNavigatePreview}
+          />
+        )}
       </div>
     </Layout>
   );

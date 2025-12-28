@@ -17,7 +17,7 @@ import {
   AppStateSnapshot,
   ImageFit,
 } from '@/lib/types';
-import { loadFromLocalStorage, createDebouncedSave } from '@/lib/storage';
+import { loadFromLocalStorage, loadState, createDebouncedSave } from '@/lib/storage';
 
 const MAX_HISTORY = 20;
 
@@ -65,6 +65,8 @@ interface AppState {
   updateAsset: (id: string, updates: Partial<ImageAsset>) => void;
   deleteAsset: (id: string) => void;
   selectAsset: (id: string, multi?: boolean) => void;
+  selectAssetRange: (startId: string, endId: string, assetIds?: string[]) => void;
+  selectAllAssets: (assetIds: string[]) => void;
   clearSelection: () => void;
   
   // Group actions
@@ -85,7 +87,8 @@ interface AppState {
   redo: () => void;
   
   // Persistence
-  loadState: () => void;
+  loadState: () => Promise<void>;
+  loadStateSync: () => void; // Synchronous version using localStorage
   getSnapshot: () => AppStateSnapshot;
   loadSnapshot: (snapshot: AppStateSnapshot) => void;
   seedSampleData: () => void;
@@ -350,6 +353,30 @@ export const useAppStore = create<AppState>()(
       }));
     },
     
+    selectAssetRange: (startId, endId, assetIds?: string[]) => {
+      set(state => {
+        // Use provided assetIds (filtered list) or fallback to all assets
+        const allIds = assetIds || state.assets.map(a => a.id);
+        const startIndex = allIds.indexOf(startId);
+        const endIndex = allIds.indexOf(endId);
+        
+        if (startIndex === -1 || endIndex === -1) return state;
+        
+        const minIndex = Math.min(startIndex, endIndex);
+        const maxIndex = Math.max(startIndex, endIndex);
+        const rangeIds = allIds.slice(minIndex, maxIndex + 1);
+        
+        // Merge with existing selection, avoiding duplicates
+        const newSelection = [...new Set([...state.selectedAssetIds, ...rangeIds])];
+        
+        return { selectedAssetIds: newSelection };
+      });
+    },
+    
+    selectAllAssets: (assetIds) => {
+      set({ selectedAssetIds: assetIds });
+    },
+    
     clearSelection: () => {
       set({ selectedAssetIds: [] });
     },
@@ -470,7 +497,14 @@ export const useAppStore = create<AppState>()(
     },
     
     // Persistence
-    loadState: () => {
+    loadState: async () => {
+      const snapshot = await loadState();
+      if (snapshot) {
+        get().loadSnapshot(snapshot);
+      }
+    },
+    
+    loadStateSync: () => {
       const snapshot = loadFromLocalStorage();
       if (snapshot) {
         get().loadSnapshot(snapshot);

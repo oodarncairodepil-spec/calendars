@@ -17,7 +17,9 @@ const AppContent = () => {
   const loadState = useAppStore((s) => s.loadState);
 
   useEffect(() => {
-    loadState();
+    loadState().catch((error) => {
+      console.error('Failed to load state:', error);
+    });
   }, [loadState]);
 
   return (
