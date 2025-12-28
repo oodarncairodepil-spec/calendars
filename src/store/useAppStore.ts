@@ -94,7 +94,7 @@ interface AppState {
   seedSampleData: () => void;
 }
 
-const createDefaultMonthPages = (): MonthPage[] => {
+const createDefaultMonthPages = (monthsPerPage: 1 | 2 = 1): MonthPage[] => {
   const pages: MonthPage[] = [];
   
   // Cover page
@@ -110,19 +110,36 @@ const createDefaultMonthPages = (): MonthPage[] => {
     gridStyle: DEFAULT_GRID_STYLE,
   });
   
-  // 12 month pages
-  for (let i = 1; i <= 12; i++) {
-    pages.push({
-      month: i,
-      layout: {
-        imageFrame: { ...DEFAULT_IMAGE_FRAME },
-        calendarGridFrame: { ...DEFAULT_GRID_FRAME },
-      },
-      assignedImageId: null,
-      imageTransform: DEFAULT_IMAGE_TRANSFORM,
-      showGrid: true,
-      gridStyle: DEFAULT_GRID_STYLE,
-    });
+  if (monthsPerPage === 1) {
+    // 12 month pages (1 month per page)
+    for (let i = 1; i <= 12; i++) {
+      pages.push({
+        month: i,
+        layout: {
+          imageFrame: { ...DEFAULT_IMAGE_FRAME },
+          calendarGridFrame: { ...DEFAULT_GRID_FRAME },
+        },
+        assignedImageId: null,
+        imageTransform: DEFAULT_IMAGE_TRANSFORM,
+        showGrid: true,
+        gridStyle: DEFAULT_GRID_STYLE,
+      });
+    }
+  } else {
+    // 6 pages for 2 months per page (Jan-Feb, Mar-Apr, May-Jun, Jul-Aug, Sep-Oct, Nov-Dec)
+    for (let i = 1; i <= 12; i += 2) {
+      pages.push({
+        month: i, // First month of the pair
+        layout: {
+          imageFrame: { ...DEFAULT_IMAGE_FRAME },
+          calendarGridFrame: { ...DEFAULT_GRID_FRAME },
+        },
+        assignedImageId: null,
+        imageTransform: DEFAULT_IMAGE_TRANSFORM,
+        showGrid: true,
+        gridStyle: DEFAULT_GRID_STYLE,
+      });
+    }
   }
   
   return pages;
@@ -148,7 +165,17 @@ export const useAppStore = create<AppState>()(
     // Computed getters
     getActiveProject: () => {
       const { projects, activeProjectId } = get();
-      return projects.find(p => p.id === activeProjectId) || null;
+      const project = projects.find(p => p.id === activeProjectId);
+      if (!project) return null;
+      
+      // Ensure monthsPerPage exists (for backward compatibility)
+      if (project.monthsPerPage === undefined || project.monthsPerPage === null) {
+        // Update the project in state with default value
+        get().updateProject(project.id, { monthsPerPage: 1 });
+        return { ...project, monthsPerPage: 1 };
+      }
+      
+      return project;
     },
     
     getActivePage: () => {
@@ -165,7 +192,7 @@ export const useAppStore = create<AppState>()(
     createProject: (title, type, format, orientation) => {
       const id = uuidv4();
       const now = new Date().toISOString();
-      
+
       const project: CalendarProject = {
         id,
         title,
@@ -174,26 +201,66 @@ export const useAppStore = create<AppState>()(
         orientation,
         bleed: 3,
         margin: 10,
-        months: createDefaultMonthPages(),
+        months: createDefaultMonthPages(1),
+        monthsPerPage: 1, // Default to 1 month per page
         createdAt: now,
         updatedAt: now,
       };
-      
+
       set(state => ({
         projects: [...state.projects, project],
         activeProjectId: id,
         activePageIndex: 0,
       }));
-      
+
       return id;
     },
     
     updateProject: (id, updates) => {
-      set(state => ({
-        projects: state.projects.map(p =>
-          p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p
-        ),
-      }));
+      set(state => {
+        const updatedProjects = state.projects.map(p => {
+          if (p.id === id) {
+            const updated = { ...p, ...updates, updatedAt: new Date().toISOString() };
+            
+            // If monthsPerPage changed, regenerate months pages
+            if (updates.monthsPerPage !== undefined && updates.monthsPerPage !== p.monthsPerPage) {
+              // Preserve existing assigned images and layouts where possible
+              const existingPages = p.months;
+              const newPages = createDefaultMonthPages(updates.monthsPerPage);
+              
+              // Try to preserve assignments and layouts
+              const preservedPages = newPages.map((newPage, index) => {
+                if (index === 0) {
+                  // Cover page - preserve from existing
+                  const existingCover = existingPages.find(page => page.month === 'cover');
+                  return existingCover || newPage;
+                }
+                
+                // For month pages, try to find matching month
+                if (typeof newPage.month === 'number') {
+                  const existingPage = existingPages.find(page => page.month === newPage.month);
+                  if (existingPage) {
+                    return existingPage;
+                  }
+                }
+                
+                return newPage;
+              });
+              
+              updated.months = preservedPages;
+              
+              // Reset active page index if it's out of bounds
+              if (state.activeProjectId === id && state.activePageIndex >= preservedPages.length) {
+                set({ activePageIndex: Math.max(0, preservedPages.length - 1) });
+              }
+            }
+            
+            return updated;
+          }
+          return p;
+        });
+        return { projects: updatedProjects };
+      });
     },
     
     deleteProject: (id) => {

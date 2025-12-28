@@ -17,6 +17,7 @@ interface DbProject {
   bleed: number;
   margin: number;
   months: unknown; // JSONB
+  months_per_page?: number; // Optional for backward compatibility
   created_at: string;
   updated_at: string;
 }
@@ -51,6 +52,7 @@ const dbProjectToProject = (db: DbProject): CalendarProject => ({
   bleed: db.bleed,
   margin: db.margin,
   months: db.months as CalendarProject['months'],
+  monthsPerPage: (db as any).months_per_page || 1, // Default to 1 if not present
   createdAt: db.created_at,
   updatedAt: db.updated_at,
 });
@@ -64,6 +66,7 @@ const projectToDbProject = (project: CalendarProject): Omit<DbProject, 'id' | 'c
   bleed: project.bleed,
   margin: project.margin,
   months: project.months as unknown,
+  months_per_page: project.monthsPerPage || 1,
 });
 
 // Convert database asset to app asset

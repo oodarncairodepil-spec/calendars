@@ -1,6 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Calendar, FolderOpen, Image, Settings, Plus } from "lucide-react";
+import { Calendar, FolderOpen, Image, Settings } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface NavLinkItemProps {
@@ -77,19 +77,6 @@ export const TopNav = () => {
           </nav>
         </div>
 
-        {/* Actions */}
-        <div className="flex items-center gap-2">
-          <Link to="/editor">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg font-medium text-sm shadow-soft hover:shadow-medium transition-shadow"
-            >
-              <Plus className="w-4 h-4" />
-              <span className="hidden sm:inline">New Project</span>
-            </motion.button>
-          </Link>
-        </div>
       </div>
     </header>
   );

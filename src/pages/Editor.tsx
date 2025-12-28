@@ -9,7 +9,6 @@ import {
   Settings,
   Image as ImageIcon,
   Grid3X3,
-  RotateCcw,
   ZoomIn,
   ZoomOut,
   Move,
@@ -25,29 +24,32 @@ import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { CalendarType, FORMAT_PRESETS, MONTH_NAMES, DEFAULT_IMAGE_TRANSFORM } from "@/lib/types";
 import { EditorCanvas } from "@/components/editor/EditorCanvas";
 import { ImagePanel } from "@/components/editor/ImagePanel";
 import { PageFlipBook } from "@/components/preview/PageFlipBook";
+import { saveState } from "@/lib/storage";
 
 const Editor = () => {
   const { projectId } = useParams();
   const navigate = useNavigate();
 
+  // Subscribe to projects and activeProjectId FIRST to ensure re-render on update
+  const projects = useAppStore((state) => state.projects);
+  const activeProjectId = useAppStore((state) => state.activeProjectId);
+  
   const {
-    projects,
-    activeProjectId,
     activePageIndex,
     setActiveProject,
     setActivePage,
     createProject,
     updateProject,
-    getActiveProject,
-    getActivePage,
     isPreviewMode,
     setPreviewMode,
+    getSnapshot,
   } = useAppStore();
 
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
@@ -67,13 +69,14 @@ const Editor = () => {
       }
     } else if (projects.length === 0) {
       setShowNewProjectDialog(true);
-    } else if (!activeProjectId) {
+    } else if (!activeProjectId && projects.length > 0) {
       setActiveProject(projects[0].id);
     }
   }, [projectId, projects, activeProjectId, setActiveProject, navigate]);
 
-  const project = getActiveProject();
-  const currentPage = getActivePage();
+  // Get current project - defined early so it can be used throughout the component
+  const project = projects.find(p => p.id === activeProjectId);
+  const currentPage = project ? project.months[activePageIndex] : null;
 
   const handleCreateProject = () => {
     const id = createProject(
@@ -134,24 +137,30 @@ const Editor = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          <Select
-            value={activeProjectId || ""}
-            onValueChange={(id) => navigate(`/editor/${id}`)}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              try {
+                const snapshot = getSnapshot();
+                await saveState(snapshot);
+                toast({
+                  title: "Saved",
+                  description: "Project has been saved successfully.",
+                });
+              } catch (error) {
+                console.error("Failed to save:", error);
+                toast({
+                  title: "Error",
+                  description: "Failed to save project. Please try again.",
+                  variant: "destructive",
+                });
+              }
+            }}
+            disabled={!project}
           >
-            <SelectTrigger className="w-40 h-8">
-              <SelectValue placeholder="Select project" />
-            </SelectTrigger>
-            <SelectContent>
-              {projects.map((p) => (
-                <SelectItem key={p.id} value={p.id}>
-                  {p.title}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button variant="outline" size="sm" onClick={() => setShowNewProjectDialog(true)}>
-            New
+            <Save className="w-4 h-4 mr-2" />
+            Save
           </Button>
 
           <Button
@@ -177,19 +186,20 @@ const Editor = () => {
           {/* Center - Canvas */}
           <div className="flex-1 flex flex-col overflow-hidden">
             {/* Page Navigation */}
-            <div className="h-12 border-b bg-muted/30 flex items-center justify-center gap-4 shrink-0">
+            <div className="min-h-12 border-b bg-muted/30 flex items-center justify-center gap-2 px-2 shrink-0 flex-wrap py-1">
               <Button
                 variant="ghost"
                 size="icon"
+                className="h-8 w-8"
                 onClick={() => handlePageChange("prev")}
                 disabled={activePageIndex === 0}
               >
-                <ChevronLeft className="w-5 h-5" />
+                <ChevronLeft className="w-4 h-4" />
               </Button>
 
-              <div className="flex items-center gap-2">
-                <span className="font-medium">{getPageTitle()}</span>
-                <span className="text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="font-medium text-sm">{getPageTitle()}</span>
+                <span className="text-xs text-muted-foreground">
                   ({activePageIndex + 1} / {project.months.length})
                 </span>
               </div>
@@ -197,20 +207,21 @@ const Editor = () => {
               <Button
                 variant="ghost"
                 size="icon"
+                className="h-8 w-8"
                 onClick={() => handlePageChange("next")}
                 disabled={activePageIndex === project.months.length - 1}
               >
-                <ChevronRight className="w-5 h-5" />
+                <ChevronRight className="w-4 h-4" />
               </Button>
 
               {/* Quick page selector */}
-              <div className="ml-4 flex gap-1 overflow-x-auto scrollbar-thin max-w-[300px]">
+              <div className="flex gap-1 flex-wrap justify-center flex-1 min-w-0">
                 {project.months.map((page, index) => (
                   <button
                     key={index}
                     onClick={() => setActivePage(index)}
                     className={cn(
-                      "px-2 py-1 text-xs rounded transition-colors shrink-0",
+                      "px-1.5 py-0.5 text-[10px] rounded transition-colors shrink-0 min-w-[24px]",
                       index === activePageIndex
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary hover:bg-secondary/80"
@@ -356,11 +367,13 @@ const PropertiesPanel = () => {
     setSelectedFrame,
     imageFit,
     setImageFit,
+    updateProject,
   } = useAppStore();
 
+  // Get current project and page
   const project = getActiveProject();
   const page = getActivePage();
-
+  
   if (!project || !page) return null;
 
   const assignedImage = page.assignedImageId ? getAssetById(page.assignedImageId) : null;
@@ -372,28 +385,141 @@ const PropertiesPanel = () => {
     updateImageTransform(activePageIndex, { ...transform, ...updates });
   };
 
-  const resetTransform = () => {
-    updateImageTransform(activePageIndex, DEFAULT_IMAGE_TRANSFORM);
-  };
-
   return (
     <div className="p-4 space-y-6">
-      <div>
-        <h3 className="font-semibold mb-3 flex items-center gap-2">
-          <Settings className="w-4 h-4" />
-          Page Properties
-        </h3>
+      {/* Project Settings */}
+      <Accordion type="single" collapsible defaultValue="" className="w-full">
+        <AccordionItem value="project-settings" className="border-none">
+          <AccordionTrigger className="py-0 hover:no-underline">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Project Settings
+            </h3>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-3 pt-3">
+          <div>
+            <label className="text-sm text-muted-foreground mb-2 block">Calendar Type</label>
+            <Select
+              value={project.calendarType}
+              onValueChange={(value) => {
+                updateProject(project.id, { calendarType: value as 'wall' | 'desk' });
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="wall">Wall</SelectItem>
+                <SelectItem value="desk">Desk</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
 
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <span className="text-sm">Show Calendar Grid</span>
-            <Switch
-              checked={page.showGrid}
-              onCheckedChange={() => toggleGrid(activePageIndex)}
-            />
+          <div>
+            <label className="text-sm text-muted-foreground mb-2 block">Format</label>
+            <Select
+              value={(() => {
+                const matchingPreset = FORMAT_PRESETS.find(
+                  (p) => p.width === project.format.width && p.height === project.format.height && p.unit === project.format.unit
+                );
+                return matchingPreset ? matchingPreset.name : 'Custom';
+              })()}
+              onValueChange={(value) => {
+                if (value === 'Custom') {
+                  // Keep current format if Custom is selected
+                  return;
+                }
+                const preset = FORMAT_PRESETS.find((p) => p.name === value);
+                if (preset) {
+                  updateProject(project.id, { format: { width: preset.width, height: preset.height, unit: preset.unit } });
+                }
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FORMAT_PRESETS.map((preset) => (
+                  <SelectItem key={preset.name} value={preset.name}>
+                    {preset.name}
+                  </SelectItem>
+                ))}
+                <SelectItem value="Custom">Custom</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div>
+            <label className="text-sm text-muted-foreground mb-2 block">Orientation</label>
+            <Select
+              value={project.orientation}
+              onValueChange={(value) => {
+                updateProject(project.id, { orientation: value as 'portrait' | 'landscape' });
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="portrait">Portrait</SelectItem>
+                <SelectItem value="landscape">Landscape</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
+
+      {/* Page Properties - Only show for non-cover pages */}
+      {page.month !== 'cover' && (
+        <div>
+          <h3 className="font-semibold mb-3 flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            Page Properties
+          </h3>
+
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Show Calendar Grid</span>
+              <Switch
+                checked={page.showGrid}
+                onCheckedChange={() => toggleGrid(activePageIndex)}
+              />
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="flex flex-col">
+                <span className="text-sm">Months per Page</span>
+                <span className="text-xs text-muted-foreground">Number of months to display</span>
+              </div>
+              <Select
+                key={`select-${project.id}-${project.monthsPerPage}`}
+                value={String(project.monthsPerPage ?? 1)}
+                onValueChange={(value) => {
+                  const currentValue = String(project.monthsPerPage ?? 1);
+                  // Prevent multiple rapid calls
+                  if (value === currentValue) {
+                    return;
+                  }
+                  const numValue = parseInt(value, 10) as 1 | 2;
+                  if (numValue === 1 || numValue === 2) {
+                    updateProject(project.id, { monthsPerPage: numValue });
+                  }
+                }}
+              >
+                <SelectTrigger className="w-28">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1">1 Month</SelectItem>
+                  <SelectItem value="2">2 Months</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Frame Selection */}
       <div>
@@ -485,43 +611,6 @@ const PropertiesPanel = () => {
                 max={3}
                 step={0.05}
               />
-            </div>
-
-            <div>
-              <label className="text-sm text-muted-foreground mb-2 flex items-center justify-between">
-                <span>Rotation</span>
-                <span className="font-mono">{transform.rotation}°</span>
-              </label>
-              <Slider
-                value={[transform.rotation]}
-                onValueChange={([value]) => handleTransformChange({ rotation: value })}
-                min={-180}
-                max={180}
-                step={1}
-              />
-            </div>
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={() => handleTransformChange({ rotation: transform.rotation - 90 })}
-              >
-                <RotateCcw className="w-3 h-3 mr-1" />
-                -90°
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="flex-1"
-                onClick={() => handleTransformChange({ rotation: transform.rotation + 90 })}
-              >
-                +90°
-              </Button>
-              <Button variant="outline" size="sm" onClick={resetTransform}>
-                Reset
-              </Button>
             </div>
 
             <div>

@@ -59,6 +59,7 @@ export interface CalendarProject {
   bleed: number;
   margin: number;
   months: MonthPage[];
+  monthsPerPage: 1 | 2; // Number of months to display per page
   createdAt: string;
   updatedAt: string;
 }

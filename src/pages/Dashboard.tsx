@@ -4,15 +4,23 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Calendar, Trash2, Edit2, Download, Upload, Sparkles } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { useAppStore } from "@/store/useAppStore";
-import { MONTH_NAMES } from "@/lib/types";
+import { MONTH_NAMES, CalendarType, FORMAT_PRESETS } from "@/lib/types";
 import { exportProjectJSON, importProjectJSON } from "@/lib/storage";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "@/hooks/use-toast";
+import { cn } from "@/lib/utils";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { projects, assets, deleteProject, seedSampleData, loadSnapshot, getSnapshot } = useAppStore();
-  const [showNewModal, setShowNewModal] = useState(false);
+  const { projects, assets, deleteProject, seedSampleData, loadSnapshot, getSnapshot, createProject } = useAppStore();
+  const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
+  const [newProjectTitle, setNewProjectTitle] = useState("My Calendar 2025");
+  const [newProjectType, setNewProjectType] = useState<CalendarType>("wall");
+  const [newProjectFormat, setNewProjectFormat] = useState(FORMAT_PRESETS[0]);
+  const [newProjectOrientation, setNewProjectOrientation] = useState<"portrait" | "landscape">("portrait");
 
   const handleExport = () => {
     const json = exportProjectJSON(getSnapshot());
@@ -39,6 +47,18 @@ const Dashboard = () => {
       toast({ title: "Import failed", description: "Invalid file format", variant: "destructive" });
     }
     e.target.value = "";
+  };
+
+  const handleCreateProject = () => {
+    const id = createProject(
+      newProjectTitle,
+      newProjectType,
+      { width: newProjectFormat.width, height: newProjectFormat.height, unit: newProjectFormat.unit },
+      newProjectOrientation
+    );
+    setShowNewProjectDialog(false);
+    navigate(`/editor/${id}`);
+    toast({ title: "Project created!" });
   };
 
   return (
@@ -104,7 +124,7 @@ const Dashboard = () => {
         >
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-display font-semibold">Projects</h2>
-            <Button onClick={() => navigate("/editor")} size="sm">
+            <Button onClick={() => setShowNewProjectDialog(true)} size="sm">
               <Plus className="w-4 h-4 mr-2" />
               New Project
             </Button>
@@ -123,7 +143,7 @@ const Dashboard = () => {
               <p className="text-muted-foreground mb-4">
                 Create your first calendar project to get started
               </p>
-              <Button onClick={() => navigate("/editor")}>
+              <Button onClick={() => setShowNewProjectDialog(true)}>
                 <Plus className="w-4 h-4 mr-2" />
                 Create Project
               </Button>
@@ -206,6 +226,102 @@ const Dashboard = () => {
           )}
         </motion.div>
       </div>
+
+      {/* New Project Dialog */}
+      <Dialog open={showNewProjectDialog} onOpenChange={setShowNewProjectDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create New Calendar</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <label className="text-sm font-medium mb-2 block">Project Name</label>
+              <Input
+                value={newProjectTitle}
+                onChange={(e) => setNewProjectTitle(e.target.value)}
+                placeholder="My Calendar 2025"
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Calendar Type</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(["wall", "desk"] as const).map((type) => (
+                  <button
+                    key={type}
+                    onClick={() => setNewProjectType(type)}
+                    className={cn(
+                      "p-4 rounded-lg border-2 text-center transition-all",
+                      newProjectType === type
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    )}
+                  >
+                    <div className="font-medium capitalize">{type}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {type === "wall" ? "Hanging calendar" : "Desktop stand"}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Format</label>
+              <Select
+                value={newProjectFormat.name}
+                onValueChange={(name) => {
+                  const preset = FORMAT_PRESETS.find((p) => p.name === name);
+                  if (preset) setNewProjectFormat(preset);
+                }}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {FORMAT_PRESETS.map((preset) => (
+                    <SelectItem key={preset.name} value={preset.name}>
+                      {preset.name} ({preset.width}×{preset.height}
+                      {preset.unit})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <label className="text-sm font-medium mb-2 block">Orientation</label>
+              <div className="grid grid-cols-2 gap-2">
+                {(["portrait", "landscape"] as const).map((orientation) => (
+                  <button
+                    key={orientation}
+                    onClick={() => setNewProjectOrientation(orientation)}
+                    className={cn(
+                      "p-3 rounded-lg border-2 flex items-center justify-center gap-2 transition-all",
+                      newProjectOrientation === orientation
+                        ? "border-primary bg-primary/5"
+                        : "border-border hover:border-primary/50"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "bg-muted rounded",
+                        orientation === "portrait" ? "w-4 h-6" : "w-6 h-4"
+                      )}
+                    />
+                    <span className="text-sm capitalize">{orientation}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <Button onClick={handleCreateProject} className="w-full">
+              Create Calendar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Layout>
   );
 };

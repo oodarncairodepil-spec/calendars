@@ -3,14 +3,18 @@ import { motion } from "framer-motion";
 import { Search, Image as ImageIcon } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { MONTH_NAMES } from "@/lib/types";
 
 export const ImagePanel = () => {
-  const { assets, groups, activePageIndex, assignImageToPage, getActivePage } = useAppStore();
+  const { assets, groups, activePageIndex, assignImageToPage, getActivePage, getActiveProject } = useAppStore();
   const [search, setSearch] = useState("");
   const [filterGroup, setFilterGroup] = useState<string | null>(null);
 
   const page = getActivePage();
+  const project = getActiveProject();
+  
   const filteredAssets = assets.filter((a) => {
     const matchesSearch = a.name.toLowerCase().includes(search.toLowerCase());
     const matchesGroup = !filterGroup || a.groupIds.includes(filterGroup);
@@ -19,6 +23,19 @@ export const ImagePanel = () => {
 
   const handleAssign = (imageId: string) => {
     assignImageToPage(activePageIndex, imageId);
+  };
+
+  // Get pages that use this image
+  const getPagesForImage = (imageId: string) => {
+    if (!project) return [];
+    const pages: Array<{ index: number; label: string }> = [];
+    project.months.forEach((p, index) => {
+      if (p.assignedImageId === imageId) {
+        const label = p.month === "cover" ? "Cover" : MONTH_NAMES[(p.month as number) - 1];
+        pages.push({ index, label });
+      }
+    });
+    return pages;
   };
 
   return (
@@ -60,20 +77,51 @@ export const ImagePanel = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
-            {filteredAssets.map((asset) => (
-              <motion.div
-                key={asset.id}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={() => handleAssign(asset.id)}
-                className={cn(
-                  "aspect-square rounded overflow-hidden cursor-pointer border-2 transition-colors",
-                  page?.assignedImageId === asset.id ? "border-primary" : "border-transparent hover:border-primary/50"
-                )}
-              >
-                <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" loading="lazy" />
-              </motion.div>
-            ))}
+            {filteredAssets.map((asset) => {
+              const assignedPages = getPagesForImage(asset.id);
+              const isAssignedToCurrentPage = page?.assignedImageId === asset.id;
+              
+              return (
+                <motion.div
+                  key={asset.id}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleAssign(asset.id)}
+                  className={cn(
+                    "aspect-square rounded overflow-hidden cursor-pointer border-2 transition-colors relative",
+                    isAssignedToCurrentPage ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-primary/50"
+                  )}
+                >
+                  <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" loading="lazy" />
+                  
+                  {/* Page assignment labels */}
+                  {assignedPages.length > 0 && (
+                    <div className="absolute bottom-0 left-0 right-0 p-1 bg-gradient-to-t from-black/80 via-black/60 to-transparent">
+                      <div className="flex flex-wrap gap-1">
+                        {assignedPages.map((pageInfo) => (
+                          <Badge
+                            key={pageInfo.index}
+                            variant="secondary"
+                            className="text-[10px] px-1.5 py-0.5 h-auto bg-background/90 text-foreground border border-primary/30"
+                          >
+                            {pageInfo.label}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Current page indicator */}
+                  {isAssignedToCurrentPage && (
+                    <div className="absolute top-1 right-1">
+                      <Badge className="text-[10px] px-1.5 py-0.5 h-auto bg-primary text-primary-foreground">
+                        Current
+                      </Badge>
+                    </div>
+                  )}
+                </motion.div>
+              );
+            })}
           </div>
         )}
       </div>
