@@ -249,7 +249,15 @@ export const loadFromSupabase = async (): Promise<AppStateSnapshot | null> => {
       throw groupsError;
     }
 
-    const groups = (groupsData || []).map(dbGroupToGroup);
+    const groups = (groupsData || [])
+      .map(dbGroupToGroup)
+      // Remove duplicates by ID first, then by name (keep first occurrence)
+      .filter((group, index, self) => 
+        index === self.findIndex(g => g.id === group.id)
+      )
+      .filter((group, index, self) =>
+        index === self.findIndex(g => g.name === group.name)
+      );
 
     return {
       version: 1,
@@ -285,23 +293,39 @@ export const deleteProjectFromSupabase = async (projectId: string): Promise<void
  * Delete an asset from Supabase
  */
 export const deleteAssetFromSupabase = async (asset: ImageAsset): Promise<void> => {
-  // Delete from storage first
-  await deleteImageFromStorage(asset);
+  try {
+    // Delete from storage first (may fail silently for blob URLs, that's OK)
+    await deleteImageFromStorage(asset);
 
-  // Delete relationships
-  await supabase
-    .from('asset_groups')
-    .delete()
-    .eq('asset_id', asset.id);
+    // Delete relationships
+    const { error: relError } = await supabase
+      .from('asset_groups')
+      .delete()
+      .eq('asset_id', asset.id);
 
-  // Delete asset
-  const { error } = await supabase
-    .from('assets')
-    .delete()
-    .eq('id', asset.id);
+    if (relError) {
+      console.error('Error deleting asset-group relationships:', relError);
+      // Continue even if relationships deletion fails
+    }
 
-  if (error) {
-    console.error('Error deleting asset:', error);
+    // Delete asset from database
+    const { error, data } = await supabase
+      .from('assets')
+      .delete()
+      .eq('id', asset.id)
+      .select();
+
+    if (error) {
+      console.error('Error deleting asset from database:', error);
+      throw error;
+    }
+
+    // Log deletion result
+    if (data && data.length === 0) {
+      console.warn(`Asset ${asset.id} not found in database (may have been already deleted)`);
+    }
+  } catch (error) {
+    console.error('Failed to delete asset from Supabase:', error);
     throw error;
   }
 };

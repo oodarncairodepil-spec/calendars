@@ -1,16 +1,61 @@
 import { useState, useCallback, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, FolderPlus, Image as ImageIcon, Search, X, Grid3X3, Upload, Link as LinkIcon, CheckSquare, Square, Eye } from "lucide-react";
+import { Plus, Trash2, FolderPlus, Image as ImageIcon, Search, X, Grid3X3, Upload, Link as LinkIcon, CheckSquare, Square, Eye, Tag } from "lucide-react";
 import { Layout } from "@/components/layout/Layout";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Badge } from "@/components/ui/badge";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { uploadImageToStorage, deleteImageFromStorage } from "@/lib/storage-upload";
+import { deleteAssetFromSupabase } from "@/lib/supabase-service";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { v4 as uuidv4 } from "uuid";
+import { ImageAsset } from "@/lib/types";
+
+// Component for image with error handling
+const AssetImage = ({ asset }: { asset: ImageAsset }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Check if blob URL is from different origin
+  const isBlobUrl = asset.url.startsWith('blob:');
+  const isInvalidBlob = isBlobUrl && !asset.url.includes(window.location.origin);
+  
+  if (isInvalidBlob || imageError) {
+    return (
+      <div className="w-full h-full bg-muted flex flex-col items-center justify-center p-4 pointer-events-none">
+        <ImageIcon className="w-8 h-8 text-muted-foreground mb-2" />
+        <p className="text-xs text-muted-foreground text-center">Image unavailable</p>
+        <p className="text-[10px] text-muted-foreground/70 text-center mt-1">
+          {isInvalidBlob ? 'Blob URL expired' : 'Failed to load'}
+        </p>
+      </div>
+    );
+  }
+  
+  return (
+    <img
+      src={asset.url}
+      alt={asset.name}
+      className="w-full h-full object-cover pointer-events-none"
+      loading="lazy"
+      onError={(e) => {
+        setImageError(true);
+        const errorTarget = e.target as HTMLImageElement;
+        console.error('Failed to load image:', {
+          assetId: asset.id,
+          assetName: asset.name,
+          url: asset.url,
+        });
+      }}
+      onLoad={() => {
+        setImageError(false);
+      }}
+    />
+  );
+};
 
 const Library = () => {
   const {
@@ -26,6 +71,7 @@ const Library = () => {
     createGroup,
     addImagesToGroup,
     deleteGroup,
+    getGroupById,
   } = useAppStore();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -40,7 +86,14 @@ const Library = () => {
 
   const filteredAssets = assets.filter((asset) => {
     const matchesSearch = asset.name.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesGroup = !filterGroup || asset.groupIds.includes(filterGroup);
+    let matchesGroup = true;
+    if (filterGroup === 'unassigned') {
+      // Show only images with no groups
+      matchesGroup = !asset.groupIds || asset.groupIds.length === 0;
+    } else if (filterGroup) {
+      // Show only images in the selected group
+      matchesGroup = asset.groupIds && asset.groupIds.includes(filterGroup);
+    }
     return matchesSearch && matchesGroup;
   });
 
@@ -100,19 +153,24 @@ const Library = () => {
           });
 
           // Upload to Supabase Storage
-          let finalUrl = tempUrl; // Fallback to blob URL if upload fails
+          let finalUrl: string | null = null;
           try {
             finalUrl = await uploadImageToStorage(file, assetId);
             // Clean up blob URL if upload succeeds
             URL.revokeObjectURL(tempUrl);
           } catch (uploadError) {
-            console.error('Failed to upload to Supabase Storage, using blob URL:', uploadError);
+            console.error('Failed to upload to Supabase Storage:', uploadError);
+            URL.revokeObjectURL(tempUrl);
             toast({ 
-              title: `Uploaded ${file.name} (local only)`, 
-              description: "Storage bucket not configured. Image will be lost on refresh.",
-              variant: "default"
+              title: `Failed to upload ${file.name}`, 
+              description: "Storage bucket not configured. Please configure Supabase Storage bucket.",
+              variant: "destructive"
             });
-            // Keep blob URL as fallback
+            return; // Don't add asset if upload fails - blob URLs won't work in production
+          }
+          
+          if (!finalUrl) {
+            return; // Don't add asset without valid URL
           }
 
           // Add asset to store with the same ID used for upload
@@ -351,31 +409,65 @@ const Library = () => {
             >
               All
             </Button>
-            {groups.map((group) => (
-              <Button
-                key={group.id}
-                variant={filterGroup === group.id ? "secondary" : "ghost"}
-                size="sm"
-                onClick={() => setFilterGroup(group.id)}
-                className="gap-2"
-              >
-                <div
-                  className="w-2 h-2 rounded-full"
-                  style={{ backgroundColor: group.color || "hsl(var(--primary))" }}
-                />
-                {group.name}
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    deleteGroup(group.id);
-                    if (filterGroup === group.id) setFilterGroup(null);
-                  }}
-                  className="ml-1 opacity-50 hover:opacity-100"
+            <Button
+              variant={filterGroup === 'unassigned' ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() => setFilterGroup('unassigned')}
+              className="gap-2"
+            >
+              <div className="w-2 h-2 rounded-full bg-muted-foreground/50" />
+              Unassigned
+            </Button>
+            {(() => {
+              // #region agent log
+              fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:groups:filter',message:'Groups before deduplication',data:{totalGroups:groups.length,groups:groups.map(g=>({id:g.id,name:g.name}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run6',hypothesisId:'F'})}).catch(()=>{});
+              // #endregion
+              // Remove duplicates by ID first, then by name (keep first occurrence)
+              const uniqueById = groups.filter((group, index, self) => 
+                index === self.findIndex(g => g.id === group.id)
+              );
+              const uniqueByName = uniqueById.filter((group, index, self) =>
+                index === self.findIndex(g => g.name === group.name)
+              );
+              // #region agent log
+              fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:groups:filter',message:'Groups after deduplication',data:{uniqueById:uniqueById.length,uniqueByName:uniqueByName.length,uniqueGroups:uniqueByName.map(g=>({id:g.id,name:g.name}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run6',hypothesisId:'F'})}).catch(()=>{});
+              // #endregion
+              return uniqueByName;
+            })().map((group) => (
+                <Button
+                  key={group.id}
+                  variant={filterGroup === group.id ? "secondary" : "ghost"}
+                  size="sm"
+                  onClick={() => setFilterGroup(group.id)}
+                  className="gap-2"
                 >
-                  <X className="w-3 h-3" />
-                </button>
-              </Button>
-            ))}
+                  <div
+                    className="w-2 h-2 rounded-full"
+                    style={{ backgroundColor: group.color || "hsl(var(--primary))" }}
+                  />
+                  {group.name}
+                  <div
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteGroup(group.id);
+                      if (filterGroup === group.id) setFilterGroup(null);
+                    }}
+                    className="ml-1 opacity-50 hover:opacity-100 cursor-pointer inline-flex items-center"
+                    role="button"
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        deleteGroup(group.id);
+                        if (filterGroup === group.id) setFilterGroup(null);
+                      }
+                    }}
+                  >
+                    <X className="w-3 h-3" />
+                  </div>
+                </Button>
+              ))}
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
@@ -408,11 +500,23 @@ const Library = () => {
                   variant="destructive"
                   size="sm"
                   onClick={async () => {
-                    // Delete from storage first, then from store
+                    // Delete from Supabase (storage + database + relationships), then from store
                     for (const assetId of selectedAssetIds) {
                       const asset = assets.find(a => a.id === assetId);
                       if (asset) {
-                        await deleteImageFromStorage(asset);
+                        try {
+                          // Delete from Supabase (storage + database + relationships)
+                          await deleteAssetFromSupabase(asset);
+                        } catch (error) {
+                          console.error('Failed to delete from Supabase:', error);
+                          toast({
+                            title: `Failed to delete ${asset.name}`,
+                            description: error instanceof Error ? error.message : 'Unknown error',
+                            variant: "destructive"
+                          });
+                          // Still delete from local store even if Supabase deletion fails
+                        }
+                        // Delete from local store
                         deleteAsset(assetId);
                       }
                     }
@@ -476,21 +580,16 @@ const Library = () => {
                         : "border-transparent hover:border-border"
                     )}
                   >
-                    <img
-                      src={asset.url}
-                      alt={asset.name}
-                      className="w-full h-full object-cover"
-                      loading="lazy"
-                    />
+                    <AssetImage asset={asset} />
                     <div
                       className={cn(
-                        "absolute inset-0 bg-gradient-to-t from-foreground/60 via-transparent to-transparent transition-opacity",
+                        "absolute inset-0 bg-gradient-to-t from-foreground/60 via-transparent to-transparent transition-opacity pointer-events-none",
                         isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                       )}
                     />
                     <div
                       className={cn(
-                        "absolute bottom-0 left-0 right-0 p-2 transition-opacity",
+                        "absolute bottom-0 left-0 right-0 p-2 transition-opacity pointer-events-none",
                         isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                       )}
                     >
@@ -501,10 +600,10 @@ const Library = () => {
                         {asset.originalWidth}×{asset.originalHeight}
                       </p>
                     </div>
-                    {/* Checkbox overlay */}
+                    {/* Checkbox overlay - Always visible when selected, hover-visible when not */}
                     <div
                       className={cn(
-                        "absolute top-2 left-2 transition-opacity z-10",
+                        "absolute top-2 left-2 transition-opacity z-30 cursor-pointer",
                         isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                       )}
                       onClick={(e) => {
@@ -513,10 +612,10 @@ const Library = () => {
                       }}
                     >
                       <div className={cn(
-                        "w-6 h-6 rounded border-2 flex items-center justify-center transition-all",
+                        "w-6 h-6 rounded border-2 flex items-center justify-center transition-all shadow-lg",
                         isSelected
-                          ? "bg-primary border-primary"
-                          : "bg-background/80 border-border backdrop-blur-sm"
+                          ? "bg-primary border-primary ring-2 ring-primary/50"
+                          : "bg-background/90 border-border backdrop-blur-sm hover:bg-background"
                       )}>
                         {isSelected && (
                           <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -546,9 +645,40 @@ const Library = () => {
                       </Button>
                     </div>
                     
-                    {/* Selection indicator */}
+                    {/* Group badges - Always visible */}
+                    {asset.groupIds && asset.groupIds.length > 0 && (
+                      <div
+                        className="absolute top-2 left-10 flex flex-wrap gap-1 max-w-[calc(100%-3rem)] z-20"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {asset.groupIds.map((groupId) => {
+                          const group = getGroupById(groupId);
+                          if (!group) return null;
+                          return (
+                            <Badge
+                              key={groupId}
+                              variant="secondary"
+                              className="text-[10px] px-1.5 py-0.5 h-auto bg-background/95 backdrop-blur-sm border border-border/50 shadow-sm"
+                              style={{
+                                backgroundColor: group.color 
+                                  ? `${group.color}E6` 
+                                  : undefined,
+                                borderColor: group.color || undefined,
+                                color: group.color ? '#fff' : undefined,
+                              }}
+                              title={group.name}
+                            >
+                              <Tag className="w-2.5 h-2.5 mr-0.5" />
+                              <span className="truncate max-w-[60px]">{group.name}</span>
+                            </Badge>
+                          );
+                        })}
+                      </div>
+                    )}
+                    
+                    {/* Selection indicator - More visible for broken images */}
                     {isSelected && (
-                      <div className="absolute inset-0 bg-primary/10 pointer-events-none" />
+                      <div className="absolute inset-0 bg-primary/20 pointer-events-none z-0 ring-2 ring-primary/30" />
                     )}
                   </motion.div>
                 );

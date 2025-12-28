@@ -525,10 +525,18 @@ export const useAppStore = create<AppState>()(
     },
     
     loadSnapshot: (snapshot) => {
+      // Remove duplicate groups by ID first, then by name (keep first occurrence)
+      const uniqueById = (snapshot.groups || []).filter(
+        (group, index, self) => index === self.findIndex(g => g.id === group.id)
+      );
+      const uniqueByName = uniqueById.filter(
+        (group, index, self) => index === self.findIndex(g => g.name === group.name)
+      );
+      
       set({
         projects: snapshot.projects || [],
         assets: snapshot.assets || [],
-        groups: snapshot.groups || [],
+        groups: uniqueByName,
         activeProjectId: snapshot.activeProjectId,
         activePageIndex: snapshot.activePageIndex || 0,
       });
