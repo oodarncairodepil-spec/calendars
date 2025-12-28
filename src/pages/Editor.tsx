@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -19,6 +19,7 @@ import {
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -27,7 +28,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { toast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { CalendarType, FORMAT_PRESETS, MONTH_NAMES, DEFAULT_IMAGE_TRANSFORM } from "@/lib/types";
+import { CalendarType, FORMAT_PRESETS, FONT_PRESETS, MONTH_NAMES, DEFAULT_IMAGE_TRANSFORM } from "@/lib/types";
 import { EditorCanvas } from "@/components/editor/EditorCanvas";
 import { ImagePanel } from "@/components/editor/ImagePanel";
 import { PageFlipBook } from "@/components/preview/PageFlipBook";
@@ -58,20 +59,41 @@ const Editor = () => {
   const [newProjectFormat, setNewProjectFormat] = useState(FORMAT_PRESETS[0]);
   const [newProjectOrientation, setNewProjectOrientation] = useState<"portrait" | "landscape">("portrait");
 
-  // Set active project on mount
+  // Track previous projectId to detect actual changes
+  const prevProjectIdRef = useRef<string | undefined>(projectId);
+  const projectsInitializedRef = useRef(false);
+
+  // Set active project on mount or when projectId changes (not when project properties are updated)
   useEffect(() => {
+    const projectIdChanged = prevProjectIdRef.current !== projectId;
+    prevProjectIdRef.current = projectId;
+
     if (projectId) {
-      const exists = projects.find((p) => p.id === projectId);
-      if (exists) {
-        setActiveProject(projectId);
-      } else {
-        navigate("/");
+      // Only check if project exists and set active if projectId actually changed
+      // This prevents resetting activePageIndex when project properties are updated
+      if (projectIdChanged) {
+        // Get current projects from store to check if project exists
+        const currentProjects = useAppStore.getState().projects;
+        const exists = currentProjects.find((p) => p.id === projectId);
+        if (exists) {
+          if (activeProjectId !== projectId) {
+            setActiveProject(projectId);
+          }
+        } else {
+          navigate("/");
+        }
       }
-    } else if (!activeProjectId && projects.length > 0) {
-      setActiveProject(projects[0].id);
+    } else if (!activeProjectId && !projectsInitializedRef.current) {
+      // Only set first project on initial mount, not on every projects array change
+      const currentProjects = useAppStore.getState().projects;
+      if (currentProjects.length > 0) {
+        setActiveProject(currentProjects[0].id);
+        projectsInitializedRef.current = true;
+      }
     }
     // Don't auto-show dialog on reload - user should navigate to dashboard to create new project
-  }, [projectId, projects, activeProjectId, setActiveProject, navigate]);
+    // Note: We use useAppStore.getState() to get projects without adding it to dependencies
+  }, [projectId, activeProjectId, setActiveProject, navigate]); // Removed 'projects' to prevent reset on property updates
 
   // Get current project - defined early so it can be used throughout the component
   const project = projects.find(p => p.id === activeProjectId);
@@ -361,6 +383,7 @@ const PropertiesPanel = () => {
     updatePageLayout,
     updateImageTransform,
     toggleGrid,
+    updateCoverText,
     getAssetById,
     selectedFrameType,
     setSelectedFrame,
@@ -478,10 +501,67 @@ const PropertiesPanel = () => {
               </SelectContent>
             </Select>
           </div>
-            </div>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
+
+          <div>
+            <label className="text-sm text-muted-foreground mb-2 block">Font Family</label>
+            <Select
+              value={project.fontFamily || 'Inter'}
+              onValueChange={(value) => {
+                updateProject(project.id, { fontFamily: value });
+              }}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {FONT_PRESETS.map((font) => (
+                  <SelectItem key={font.name} value={font.name}>
+                    <span style={{ fontFamily: font.family }}>{font.displayName}</span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+
+      {/* Cover Page Properties - Only show for cover page */}
+      {page.month === 'cover' && (
+        <Accordion type="single" collapsible defaultValue="" className="w-full">
+          <AccordionItem value="cover-text" className="border-none">
+            <AccordionTrigger className="py-0 hover:no-underline">
+              <h3 className="font-semibold flex items-center gap-2">
+                <Settings className="w-4 h-4" />
+                Cover Page Text
+              </h3>
+            </AccordionTrigger>
+            <AccordionContent>
+              <div className="space-y-3 pt-3">
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">Top Text</label>
+                  <Textarea
+                    placeholder="Enter text for top section..."
+                    value={page.coverTextTop || ""}
+                    onChange={(e) => updateCoverText(activePageIndex, 'top', e.target.value)}
+                    className="min-h-[80px] resize-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm text-muted-foreground mb-2 block">Bottom Text</label>
+                  <Textarea
+                    placeholder="Enter text for bottom section..."
+                    value={page.coverTextBottom || ""}
+                    onChange={(e) => updateCoverText(activePageIndex, 'bottom', e.target.value)}
+                    className="min-h-[80px] resize-none"
+                  />
+                </div>
+              </div>
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
+      )}
 
       {/* Page Properties - Only show for non-cover pages */}
       {page.month !== 'cover' && (

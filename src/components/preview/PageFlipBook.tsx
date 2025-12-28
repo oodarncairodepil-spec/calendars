@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
-import { CalendarProject, MONTH_NAMES } from "@/lib/types";
+import { CalendarProject, MONTH_NAMES, DAY_NAMES_SHORT, FONT_PRESETS } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -63,13 +63,27 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
     const { imageFrame, calendarGridFrame } = page.layout;
     const transform = page.imageTransform;
 
+    // Get font family from presets
+    const selectedFont = FONT_PRESETS.find(f => f.name === (project.fontFamily || 'Inter')) || FONT_PRESETS[0];
+    const fontFamily = selectedFont.family;
+
     const getMonthName = () => {
       if (page.month === "cover") return project.title;
       return MONTH_NAMES[(page.month as number) - 1];
     };
 
     return (
-      <div className="w-full h-full bg-card relative overflow-hidden">
+      <div 
+        className="w-full h-full bg-card relative overflow-hidden"
+        style={{ fontFamily: fontFamily }}
+      >
+        {/* Cover Page Top Text */}
+        {page.month === "cover" && page.coverTextTop && (
+          <div className="absolute top-0 left-0 right-0 p-6 text-center z-10 pointer-events-none">
+            <p className="text-base font-medium text-foreground whitespace-pre-wrap">{page.coverTextTop}</p>
+          </div>
+        )}
+
         {/* Image Frame */}
         <div
           className="absolute overflow-hidden"
@@ -114,10 +128,10 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                   <span className="font-display font-bold text-lg">{getMonthName()}</span>
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-xs text-center">
-                  {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => (
+                  {DAY_NAMES_SHORT.map((d, i) => (
                     <div key={d} className={cn(
                       "font-medium",
-                      i === 0 ? "text-red-500" : "text-muted-foreground"
+                      i === 0 ? "text-red-500" : "text-muted-foreground" // Minggu (index 0) is red
                     )}>{d}</div>
                   ))}
                   {Array.from({ length: 35 }, (_, i) => {
@@ -185,10 +199,10 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                         <span className="font-display font-bold text-lg">{monthName}</span>
                       </div>
                       <div className="grid grid-cols-7 gap-1 text-xs text-center">
-                        {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d, i) => (
+                        {DAY_NAMES_SHORT.map((d, i) => (
                           <div key={d} className={cn(
                             "font-medium",
-                            i === 0 ? "text-red-500" : "text-muted-foreground"
+                            i === 6 ? "text-red-500" : "text-muted-foreground" // Minggu (index 6) is red
                           )}>{d}</div>
                         ))}
                         {days.map((day, i) => {
@@ -213,6 +227,13 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Cover Page Bottom Text */}
+        {page.month === "cover" && page.coverTextBottom && (
+          <div className="absolute bottom-0 left-0 right-0 p-6 text-center z-10 pointer-events-none">
+            <p className="text-base font-medium text-foreground whitespace-pre-wrap">{page.coverTextBottom}</p>
           </div>
         )}
       </div>

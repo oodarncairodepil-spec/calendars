@@ -38,6 +38,8 @@ export interface MonthPage {
   imageTransform: ImageTransform;
   showGrid: boolean;
   gridStyle: GridStyle;
+  coverTextTop?: string; // Text for top section of cover page
+  coverTextBottom?: string; // Text for bottom section of cover page
 }
 
 export interface CalendarFormat {
@@ -61,6 +63,7 @@ export interface CalendarProject {
   months: MonthPage[];
   monthsPerPage: 1 | 2; // Number of months to display per page
   selectedGroupId?: string | null; // Selected group ID for ImagePanel
+  fontFamily?: string; // Font family for the calendar (e.g., 'Inter', 'Sora', 'Roboto', etc.)
   createdAt: string;
   updatedAt: string;
 }
@@ -105,6 +108,26 @@ export const FORMAT_PRESETS: FormatPreset[] = [
   { name: 'Custom', width: 210, height: 297, unit: 'mm' },
 ];
 
+// Font presets for calendar projects
+export interface FontPreset {
+  name: string;
+  family: string;
+  displayName: string;
+}
+
+export const FONT_PRESETS: FontPreset[] = [
+  { name: 'Inter', family: 'Inter, system-ui, sans-serif', displayName: 'Inter' },
+  { name: 'Sora', family: 'Sora, system-ui, sans-serif', displayName: 'Sora' },
+  { name: 'Roboto', family: 'Roboto, system-ui, sans-serif', displayName: 'Roboto' },
+  { name: 'Open Sans', family: '"Open Sans", system-ui, sans-serif', displayName: 'Open Sans' },
+  { name: 'Lato', family: 'Lato, system-ui, sans-serif', displayName: 'Lato' },
+  { name: 'Montserrat', family: 'Montserrat, system-ui, sans-serif', displayName: 'Montserrat' },
+  { name: 'Poppins', family: 'Poppins, system-ui, sans-serif', displayName: 'Poppins' },
+  { name: 'Playfair Display', family: '"Playfair Display", serif', displayName: 'Playfair Display' },
+  { name: 'Merriweather', family: 'Merriweather, serif', displayName: 'Merriweather' },
+  { name: 'Georgia', family: 'Georgia, serif', displayName: 'Georgia' },
+];
+
 // Default values for new projects
 export const DEFAULT_IMAGE_TRANSFORM: ImageTransform = {
   x: 0,
@@ -138,9 +161,14 @@ export const DEFAULT_GRID_FRAME: Frame = {
 };
 
 export const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December'
+  'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+  'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
+
+// JavaScript Date.getDay() returns: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+// For Indonesian calendar display, we map: Minggu (0), Senin (1), Selasa (2), Rabu (3), Kamis (4), Jumat (5), Sabtu (6)
+export const DAY_NAMES_SHORT = ['M', 'S', 'S', 'R', 'K', 'J', 'S']; // Minggu (0), Senin (1), Selasa (2), Rabu (3), Kamis (4), Jumat (5), Sabtu (6)
+export const DAY_NAMES_FULL = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
 // Undo/Redo action types
 export interface HistoryAction {

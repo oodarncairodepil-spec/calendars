@@ -59,6 +59,7 @@ interface AppState {
   updateImageTransform: (pageIndex: number, transform: ImageTransform) => void;
   assignImageToPage: (pageIndex: number, imageId: string | null) => void;
   toggleGrid: (pageIndex: number) => void;
+  updateCoverText: (pageIndex: number, textType: 'top' | 'bottom', text: string) => void;
   
   // Asset actions
   addAsset: (asset: Omit<ImageAsset, 'id' | 'createdAt' | 'groupIds' | 'tags'>, id?: string) => string;
@@ -94,7 +95,7 @@ interface AppState {
   seedSampleData: () => void;
 }
 
-const createDefaultMonthPages = (monthsPerPage: 1 | 2 = 1): MonthPage[] => {
+const createDefaultMonthPages = (monthsPerPage: 1 | 2 = 2): MonthPage[] => {
   const pages: MonthPage[] = [];
   
   // Cover page
@@ -178,9 +179,6 @@ export const useAppStore = create<AppState>()(
       // Fix pages structure if monthsPerPage doesn't match page count
       const expectedPageCount = project.monthsPerPage === 1 ? 13 : 7; // cover + 12 months or cover + 6 pairs
       if (project.months.length !== expectedPageCount) {
-        // #region agent log
-        fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAppStore.ts:177',message:'Fixing page structure mismatch',data:{monthsPerPage:project.monthsPerPage,currentPageCount:project.months.length,expectedPageCount,currentMonths:project.months.map(p=>p.month)},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'D'})}).catch(()=>{});
-        // #endregion
         // Regenerate pages to match monthsPerPage
         // This will trigger the regenerate logic in updateProject
         get().updateProject(project.id, { monthsPerPage: project.monthsPerPage });
@@ -215,8 +213,9 @@ export const useAppStore = create<AppState>()(
         orientation,
         bleed: 3,
         margin: 10,
-        months: createDefaultMonthPages(1),
-        monthsPerPage: 1, // Default to 1 month per page
+              months: createDefaultMonthPages(2),
+              monthsPerPage: 2, // Default to 2 months per page
+              fontFamily: 'Inter', // Default font
         createdAt: now,
         updatedAt: now,
       };
@@ -246,19 +245,9 @@ export const useAppStore = create<AppState>()(
             if (shouldRegenerate) {
               const targetMonthsPerPage = updates.monthsPerPage !== undefined ? updates.monthsPerPage : p.monthsPerPage;
               
-              // #region agent log
-              const existingMonths = p.months.map(pg => pg.month);
-              fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAppStore.ts:227',message:'Regenerating months pages',data:{oldMonthsPerPage:p.monthsPerPage,newMonthsPerPage:targetMonthsPerPage,existingMonths,currentPageCount:p.months.length,expectedPageCount},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
-              // #endregion
-              
               // Preserve existing assigned images and layouts where possible
               const existingPages = p.months;
               const newPages = createDefaultMonthPages(targetMonthsPerPage);
-              
-              // #region agent log
-              const newMonths = newPages.map(pg => pg.month);
-              fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAppStore.ts:235',message:'New pages created',data:{newMonths},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
-              // #endregion
               
               // Try to preserve assignments and layouts
               const preservedPages = newPages.map((newPage, index) => {
@@ -272,20 +261,12 @@ export const useAppStore = create<AppState>()(
                 if (typeof newPage.month === 'number') {
                   const existingPage = existingPages.find(page => page.month === newPage.month);
                   if (existingPage) {
-                    // #region agent log
-                    fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAppStore.ts:247',message:'Preserved existing page',data:{index,newPageMonth:newPage.month,existingPageMonth:existingPage.month},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
-                    // #endregion
                     return existingPage;
                   }
                 }
                 
                 return newPage;
               });
-              
-              // #region agent log
-              const preservedMonths = preservedPages.map(pg => pg.month);
-              fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useAppStore.ts:256',message:'Final preserved pages',data:{preservedMonths},timestamp:Date.now(),sessionId:'debug-session',runId:'run2',hypothesisId:'E'})}).catch(()=>{});
-              // #endregion
               
               updated.months = preservedPages;
               
@@ -400,6 +381,22 @@ export const useAppStore = create<AppState>()(
       
       const updatedMonths = [...project.months];
       updatedMonths[pageIndex] = { ...page, showGrid: !page.showGrid };
+      
+      get().updateProject(project.id, { months: updatedMonths });
+    },
+    
+    updateCoverText: (pageIndex, textType, text) => {
+      const project = get().getActiveProject();
+      if (!project) return;
+      
+      const page = project.months[pageIndex];
+      if (!page || page.month !== 'cover') return;
+      
+      const updatedMonths = [...project.months];
+      updatedMonths[pageIndex] = {
+        ...page,
+        [textType === 'top' ? 'coverTextTop' : 'coverTextBottom']: text,
+      };
       
       get().updateProject(project.id, { months: updatedMonths });
     },

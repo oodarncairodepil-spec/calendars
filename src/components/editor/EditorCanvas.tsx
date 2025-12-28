@@ -1,7 +1,7 @@
 import { useRef, useState, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAppStore } from "@/store/useAppStore";
-import { CalendarProject, MONTH_NAMES } from "@/lib/types";
+import { CalendarProject, MONTH_NAMES, DAY_NAMES_SHORT, FONT_PRESETS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 // Helper function to get days in a month
@@ -50,9 +50,9 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
   const page = project.months[pageIndex];
   if (!page) return null;
   
-  // #region agent log
-  fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:51',message:'EditorCanvas render',data:{pageIndex,pageMonth:page.month,monthsPerPage:project.monthsPerPage,totalPages:project.months.length,allPageMonths:project.months.map(p=>p.month)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-  // #endregion
+  // Get font family from presets
+  const selectedFont = FONT_PRESETS.find(f => f.name === (project.fontFamily || 'Inter')) || FONT_PRESETS[0];
+  const fontFamily = selectedFont.family;
 
   const assignedImage = page.assignedImageId ? getAssetById(page.assignedImageId) : null;
   const { imageFrame, calendarGridFrame } = page.layout;
@@ -87,10 +87,6 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
       }
     }
     
-    // #region agent log
-    fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:79',message:'getMonthsToDisplay',data:{pageIndex,currentMonth,monthsPerPage:project.monthsPerPage,months,pageMonth:page.month},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
     return months;
   };
 
@@ -106,8 +102,16 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
           maxWidth: "100%",
           width: project.orientation === "portrait" ? "auto" : "100%",
           height: project.orientation === "portrait" ? "100%" : "auto",
+          fontFamily: fontFamily,
         }}
       >
+        {/* Cover Page Top Text */}
+        {page.month === "cover" && page.coverTextTop && (
+          <div className="absolute top-0 left-0 right-0 p-4 text-center z-10 pointer-events-none">
+            <p className="text-sm font-medium text-foreground whitespace-pre-wrap">{page.coverTextTop}</p>
+          </div>
+        )}
+
         {/* Image Frame */}
         <div
           onClick={() => setSelectedFrame("image")}
@@ -163,10 +167,10 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                   <span className="font-display font-semibold text-sm">{getMonthName()}</span>
                 </div>
                 <div className="grid grid-cols-7 gap-px text-[6px] text-center">
-                  {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                  {DAY_NAMES_SHORT.map((d, i) => (
                     <div key={i} className={cn(
                       "font-medium",
-                      i === 0 ? "text-red-500" : "text-muted-foreground"
+                      i === 0 ? "text-red-500" : "text-muted-foreground" // Minggu (index 0) is red
                     )}>{d}</div>
                   ))}
                   {Array.from({ length: 35 }, (_, i) => {
@@ -202,10 +206,10 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                         <span className="font-display font-semibold text-sm">{monthName}</span>
                       </div>
                       <div className="grid grid-cols-7 gap-px text-[6px] text-center">
-                        {["S", "M", "T", "W", "T", "F", "S"].map((d, i) => (
+                        {DAY_NAMES_SHORT.map((d, i) => (
                           <div key={i} className={cn(
                             "font-medium",
-                            i === 0 ? "text-red-500" : "text-muted-foreground"
+                            i === 0 ? "text-red-500" : "text-muted-foreground" // Minggu (index 0) is red
                           )}>{d}</div>
                         ))}
                         {days.map((day, i) => {
@@ -229,6 +233,13 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Cover Page Bottom Text */}
+        {page.month === "cover" && page.coverTextBottom && (
+          <div className="absolute bottom-0 left-0 right-0 p-4 text-center z-10 pointer-events-none">
+            <p className="text-sm font-medium text-foreground whitespace-pre-wrap">{page.coverTextBottom}</p>
           </div>
         )}
       </motion.div>
