@@ -7,6 +7,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+} from "@/components/ui/dropdown-menu";
 import { ImageLightbox } from "@/components/ImageLightbox";
 import { uploadImageToStorage, deleteImageFromStorage } from "@/lib/storage-upload";
 import { deleteAssetFromSupabase } from "@/lib/supabase-service";
@@ -218,6 +225,18 @@ const Library = () => {
     toast({ title: "Group created!" });
   };
 
+  const handleAddToGroup = (groupId: string) => {
+    if (selectedAssetIds.length > 0) {
+      addImagesToGroup(groupId, selectedAssetIds);
+      clearSelection();
+      const group = groups.find(g => g.id === groupId);
+      toast({ 
+        title: "Images added to group",
+        description: `${selectedAssetIds.length} image(s) added to "${group?.name || 'group'}"`
+      });
+    }
+  };
+
   const handleAssetClick = (assetId: string, index: number, e: React.MouseEvent) => {
     e.stopPropagation();
     
@@ -323,6 +342,45 @@ const Library = () => {
                 </div>
               </DialogContent>
             </Dialog>
+
+            {groups.length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={selectedAssetIds.length === 0}
+                  >
+                    <Tag className="w-4 h-4 mr-2" />
+                    Add to Group
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {(() => {
+                    // Remove duplicates by ID first, then by name (keep first occurrence)
+                    const uniqueById = groups.filter((group, index, self) => 
+                      index === self.findIndex(g => g.id === group.id)
+                    );
+                    const uniqueByName = uniqueById.filter((group, index, self) =>
+                      index === self.findIndex(g => g.name === group.name)
+                    );
+                    return uniqueByName;
+                  })().map((group) => (
+                    <DropdownMenuItem
+                      key={group.id}
+                      onClick={() => handleAddToGroup(group.id)}
+                      className="gap-2"
+                    >
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: group.color || "hsl(var(--primary))" }}
+                      />
+                      {group.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
               <DialogTrigger asChild>
