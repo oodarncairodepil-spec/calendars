@@ -65,13 +65,12 @@ const Editor = () => {
       if (exists) {
         setActiveProject(projectId);
       } else {
-        navigate("/editor");
+        navigate("/");
       }
-    } else if (projects.length === 0) {
-      setShowNewProjectDialog(true);
     } else if (!activeProjectId && projects.length > 0) {
       setActiveProject(projects[0].id);
     }
+    // Don't auto-show dialog on reload - user should navigate to dashboard to create new project
   }, [projectId, projects, activeProjectId, setActiveProject, navigate]);
 
   // Get current project - defined early so it can be used throughout the component
@@ -227,7 +226,7 @@ const Editor = () => {
                         : "bg-secondary hover:bg-secondary/80"
                     )}
                   >
-                    {page.month === "cover" ? "C" : page.month}
+                    {page.month === "cover" ? "C" : index}
                   </button>
                 ))}
               </div>
@@ -437,15 +436,27 @@ const PropertiesPanel = () => {
               }}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>
+                  {(() => {
+                    const matchingPreset = FORMAT_PRESETS.find(
+                      (p) => p.width === project.format.width && p.height === project.format.height && p.unit === project.format.unit
+                    );
+                    if (matchingPreset) {
+                      return `${matchingPreset.name} (${matchingPreset.width}×${matchingPreset.height} ${matchingPreset.unit})`;
+                    }
+                    return `Custom (${project.format.width}×${project.format.height} ${project.format.unit})`;
+                  })()}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {FORMAT_PRESETS.map((preset) => (
                   <SelectItem key={preset.name} value={preset.name}>
-                    {preset.name}
+                    {preset.name} ({preset.width}×{preset.height} {preset.unit})
                   </SelectItem>
                 ))}
-                <SelectItem value="Custom">Custom</SelectItem>
+                <SelectItem value="Custom">
+                  Custom ({project.format.width}×{project.format.height} {project.format.unit})
+                </SelectItem>
               </SelectContent>
             </Select>
           </div>

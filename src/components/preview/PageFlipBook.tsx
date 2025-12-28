@@ -121,11 +121,14 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                     )}>{d}</div>
                   ))}
                   {Array.from({ length: 35 }, (_, i) => {
+                    // For cover page, show sample calendar
+                    // First row starts with Sunday (index 0)
                     const dayOfWeek = i % 7;
+                    const isSunday = dayOfWeek === 0;
                     return (
                       <div key={i} className={cn(
                         "py-1",
-                        dayOfWeek === 0 ? "text-red-500/70" : ""
+                        isSunday && "text-red-500"
                       )}>{i < 31 ? i + 1 : ""}</div>
                     );
                   })}
@@ -190,15 +193,15 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                         ))}
                         {days.map((day, i) => {
                           // Calculate the actual day of week (0 = Sunday, 6 = Saturday)
-                          const dayOfWeek = (i - firstDay) % 7;
-                          // Normalize to 0-6 range (Sunday = 0, Saturday = 6)
-                          const normalizedDayOfWeek = dayOfWeek < 0 ? dayOfWeek + 7 : dayOfWeek;
-                          const isSunday = normalizedDayOfWeek === 0;
+                          // firstDay is the day of week for the 1st of the month
+                          // For each day, calculate: (firstDay + day - 1) % 7
+                          const dayOfWeek = day !== null ? (firstDay + day - 1) % 7 : -1;
+                          const isSunday = dayOfWeek === 0;
                           return (
                             <div key={i} className={cn(
                               "py-1",
                               day === null && "opacity-0",
-                              day !== null && isSunday && "text-red-500/70"
+                              day !== null && isSunday && "text-red-500"
                             )}>
                               {day}
                             </div>

@@ -146,42 +146,61 @@ export const saveToSupabase = async (state: AppStateSnapshot): Promise<void> => 
 
     // Save assets
     for (const asset of state.assets) {
-      const dbAsset = assetToDbAsset(asset);
-      const { error: assetError } = await supabase
-        .from('assets')
-        .upsert({
-          id: asset.id,
-          ...dbAsset,
-        }, {
-          onConflict: 'id',
-        });
+      try {
+        const dbAsset = assetToDbAsset(asset);
+        const { error: assetError } = await supabase
+          .from('assets')
+          .upsert({
+            id: asset.id,
+            ...dbAsset,
+          }, {
+            onConflict: 'id',
+          });
 
-      if (assetError) {
-        console.error('Error saving asset:', assetError);
-        throw assetError;
-      }
-
-      // Update asset-group relationships
-      // First, remove all existing relationships
-      await supabase
-        .from('asset_groups')
-        .delete()
-        .eq('asset_id', asset.id);
-
-      // Then, add new relationships
-      if (asset.groupIds && asset.groupIds.length > 0) {
-        const relationships = asset.groupIds.map(groupId => ({
-          asset_id: asset.id,
-          group_id: groupId,
-        }));
-
-        const { error: relError } = await supabase
-          .from('asset_groups')
-          .insert(relationships);
-
-        if (relError) {
-          console.error('Error saving asset-group relationships:', relError);
+        if (assetError) {
+          console.error('Error saving asset:', assetError);
+          throw assetError;
         }
+
+        // Update asset-group relationships
+        // First, remove all existing relationships for this asset
+        const { error: deleteError } = await supabase
+          .from('asset_groups')
+          .delete()
+          .eq('asset_id', asset.id);
+
+        if (deleteError) {
+          console.warn('Warning: Error deleting asset-group relationships:', deleteError);
+          // Continue even if delete fails - we'll try to insert anyway
+        }
+
+        // Wait a bit to ensure delete is processed
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        // Then, add new relationships one by one to avoid duplicate key errors
+        if (asset.groupIds && asset.groupIds.length > 0) {
+          for (const groupId of asset.groupIds) {
+            const { error: relError } = await supabase
+              .from('asset_groups')
+              .insert({
+                asset_id: asset.id,
+                group_id: groupId,
+              });
+
+            if (relError) {
+              // If it's a duplicate key error (23505), ignore it (relationship already exists)
+              // This can happen if delete didn't complete or relationship was already there
+              if (relError.code === '23505') {
+                // Duplicate key - relationship already exists, which is fine
+                continue;
+              }
+              console.warn('Warning: Error saving asset-group relationship:', relError);
+            }
+          }
+        }
+      } catch (error) {
+        console.error(`Error processing asset ${asset.id}:`, error);
+        // Continue with next asset instead of stopping entire save
       }
     }
 

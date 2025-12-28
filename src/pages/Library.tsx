@@ -77,6 +77,7 @@ const Library = () => {
     clearSelection,
     createGroup,
     addImagesToGroup,
+    removeImagesFromGroup,
     deleteGroup,
     getGroupById,
   } = useAppStore();
@@ -237,6 +238,29 @@ const Library = () => {
     }
   };
 
+  const handleRemoveFromGroup = (groupId: string) => {
+    if (selectedAssetIds.length > 0) {
+      removeImagesFromGroup(groupId, selectedAssetIds);
+      clearSelection();
+      const group = groups.find(g => g.id === groupId);
+      toast({ 
+        title: "Images removed from group",
+        description: `${selectedAssetIds.length} image(s) removed from "${group?.name || 'group'}"`
+      });
+    }
+  };
+
+  // Get groups that contain at least one of the selected images
+  const getGroupsForSelectedImages = () => {
+    if (selectedAssetIds.length === 0) return [];
+    const selectedAssets = assets.filter(a => selectedAssetIds.includes(a.id));
+    const groupIds = new Set<string>();
+    selectedAssets.forEach(asset => {
+      asset.groupIds.forEach(groupId => groupIds.add(groupId));
+    });
+    return groups.filter(g => groupIds.has(g.id));
+  };
+
   const handleAssetClick = (assetId: string, index: number, e: React.MouseEvent) => {
     e.stopPropagation();
     
@@ -369,6 +393,37 @@ const Library = () => {
                     <DropdownMenuItem
                       key={group.id}
                       onClick={() => handleAddToGroup(group.id)}
+                      className="gap-2"
+                    >
+                      <div
+                        className="w-2 h-2 rounded-full"
+                        style={{ backgroundColor: group.color || "hsl(var(--primary))" }}
+                      />
+                      {group.name}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {/* Remove from Group dropdown - only show if selected images are in groups */}
+            {getGroupsForSelectedImages().length > 0 && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    disabled={selectedAssetIds.length === 0}
+                  >
+                    <Tag className="w-4 h-4 mr-2" />
+                    Remove from Group
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  {getGroupsForSelectedImages().map((group) => (
+                    <DropdownMenuItem
+                      key={group.id}
+                      onClick={() => handleRemoveFromGroup(group.id)}
                       className="gap-2"
                     >
                       <div

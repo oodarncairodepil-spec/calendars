@@ -5,7 +5,49 @@ import { useAppStore } from "@/store/useAppStore";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
-import { MONTH_NAMES } from "@/lib/types";
+import { MONTH_NAMES, ImageAsset } from "@/lib/types";
+
+// Component for image with error handling
+const AssetImage = ({ asset }: { asset: ImageAsset }) => {
+  const [imageError, setImageError] = useState(false);
+  
+  // Check if blob URL is from different origin
+  const isBlobUrl = asset.url.startsWith('blob:');
+  const isInvalidBlob = isBlobUrl && !asset.url.includes(window.location.origin);
+  
+  if (isInvalidBlob || imageError) {
+    return (
+      <div className="w-full h-full bg-muted flex flex-col items-center justify-center p-4 pointer-events-none">
+        <ImageIcon className="w-8 h-8 text-muted-foreground mb-2" />
+        <p className="text-xs text-muted-foreground text-center">Image unavailable</p>
+        <p className="text-[10px] text-muted-foreground/70 text-center mt-1">
+          {isInvalidBlob ? 'Blob URL expired' : 'Failed to load'}
+        </p>
+      </div>
+    );
+  }
+  
+  return (
+    <img
+      src={asset.url}
+      alt={asset.name}
+      className="w-full h-full object-cover pointer-events-none"
+      loading="lazy"
+      onError={(e) => {
+        setImageError(true);
+        const errorTarget = e.target as HTMLImageElement;
+        console.error('Failed to load image:', {
+          assetId: asset.id,
+          assetName: asset.name,
+          url: asset.url,
+        });
+      }}
+      onLoad={() => {
+        setImageError(false);
+      }}
+    />
+  );
+};
 
 export const ImagePanel = () => {
   const { assets, groups, activePageIndex, assignImageToPage, getActivePage, getActiveProject } = useAppStore();
@@ -15,11 +57,14 @@ export const ImagePanel = () => {
   const page = getActivePage();
   const project = getActiveProject();
   
-  const filteredAssets = assets.filter((a) => {
-    const matchesSearch = a.name.toLowerCase().includes(search.toLowerCase());
-    const matchesGroup = !filterGroup || a.groupIds.includes(filterGroup);
-    return matchesSearch && matchesGroup;
-  });
+  // Only show images if a group is selected
+  const filteredAssets = filterGroup 
+    ? assets.filter((a) => {
+        const matchesSearch = a.name.toLowerCase().includes(search.toLowerCase());
+        const matchesGroup = a.groupIds.includes(filterGroup);
+        return matchesSearch && matchesGroup;
+      })
+    : [];
 
   const handleAssign = (imageId: string) => {
     assignImageToPage(activePageIndex, imageId);
@@ -31,7 +76,7 @@ export const ImagePanel = () => {
     const pages: Array<{ index: number; label: string }> = [];
     project.months.forEach((p, index) => {
       if (p.assignedImageId === imageId) {
-        const label = p.month === "cover" ? "Cover" : MONTH_NAMES[(p.month as number) - 1];
+        const label = p.month === "cover" ? "Cover" : `Page ${index}`;
         pages.push({ index, label });
       }
     });
@@ -50,30 +95,43 @@ export const ImagePanel = () => {
             className="pl-8 h-8 text-sm"
           />
         </div>
-        <div className="flex gap-1 mt-2 flex-wrap">
-          <button
-            onClick={() => setFilterGroup(null)}
-            className={cn("px-2 py-0.5 text-xs rounded", !filterGroup ? "bg-primary text-primary-foreground" : "bg-secondary")}
-          >
-            All
-          </button>
-          {groups.map((g) => (
-            <button
-              key={g.id}
-              onClick={() => setFilterGroup(g.id)}
-              className={cn("px-2 py-0.5 text-xs rounded", filterGroup === g.id ? "bg-primary text-primary-foreground" : "bg-secondary")}
-            >
-              {g.name}
-            </button>
-          ))}
+        <div className="mt-2">
+          <p className="text-xs text-muted-foreground mb-2">Select a group to view images:</p>
+          <div className="flex gap-1 flex-wrap">
+            {groups.length === 0 ? (
+              <p className="text-xs text-muted-foreground">No groups available. Create groups in the Library page.</p>
+            ) : (
+              groups.map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => setFilterGroup(filterGroup === g.id ? null : g.id)}
+                  className={cn(
+                    "px-2 py-0.5 text-xs rounded transition-colors",
+                    filterGroup === g.id 
+                      ? "bg-primary text-primary-foreground" 
+                      : "bg-secondary hover:bg-secondary/80"
+                  )}
+                >
+                  {g.name}
+                </button>
+              ))
+            )}
+          </div>
         </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
-        {filteredAssets.length === 0 ? (
+        {!filterGroup ? (
           <div className="text-center py-8 text-muted-foreground">
             <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">No images</p>
+            <p className="text-sm font-medium mb-1">Select a group</p>
+            <p className="text-xs">Choose a group from above to view and assign images</p>
+          </div>
+        ) : filteredAssets.length === 0 ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">No images in this group</p>
+            {search && <p className="text-xs mt-1">Try a different search term</p>}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
@@ -92,7 +150,7 @@ export const ImagePanel = () => {
                     isAssignedToCurrentPage ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-primary/50"
                   )}
                 >
-                  <img src={asset.url} alt={asset.name} className="w-full h-full object-cover" loading="lazy" />
+                  <AssetImage asset={asset} />
                   
                   {/* Page assignment labels */}
                   {assignedPages.length > 0 && (

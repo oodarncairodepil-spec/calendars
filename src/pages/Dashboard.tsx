@@ -15,7 +15,7 @@ import { cn } from "@/lib/utils";
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const { projects, assets, deleteProject, seedSampleData, loadSnapshot, getSnapshot, createProject } = useAppStore();
+  const { projects, assets, deleteProject, seedSampleData, loadSnapshot, getSnapshot, createProject, getAssetById } = useAppStore();
   const [showNewProjectDialog, setShowNewProjectDialog] = useState(false);
   const [newProjectTitle, setNewProjectTitle] = useState("My Calendar 2025");
   const [newProjectType, setNewProjectType] = useState<CalendarType>("wall");
@@ -175,7 +175,23 @@ const Dashboard = () => {
                             }}
                           >
                             <div className="p-2 h-full flex flex-col">
-                              <div className="flex-1 bg-muted rounded-sm" />
+                              {(() => {
+                                const coverPage = project.months.find(p => p.month === "cover");
+                                const coverImageId = coverPage?.assignedImageId;
+                                const coverImage = coverImageId ? getAssetById(coverImageId) : null;
+                                
+                                return coverImage ? (
+                                  <div className="flex-1 rounded-sm overflow-hidden">
+                                    <img 
+                                      src={coverImage.url} 
+                                      alt={project.title}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ) : (
+                                  <div className="flex-1 bg-muted rounded-sm" />
+                                );
+                              })()}
                               <div className="mt-1 h-4 bg-muted/50 rounded-sm" />
                             </div>
                           </div>

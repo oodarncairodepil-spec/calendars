@@ -49,6 +49,10 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
 
   const page = project.months[pageIndex];
   if (!page) return null;
+  
+  // #region agent log
+  fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:51',message:'EditorCanvas render',data:{pageIndex,pageMonth:page.month,monthsPerPage:project.monthsPerPage,totalPages:project.months.length,allPageMonths:project.months.map(p=>p.month)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+  // #endregion
 
   const assignedImage = page.assignedImageId ? getAssetById(page.assignedImageId) : null;
   const { imageFrame, calendarGridFrame } = page.layout;
@@ -71,15 +75,27 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
     const currentMonth = page.month as number;
     const months: number[] = [currentMonth];
     
-    if (project.monthsPerPage === 2 && currentMonth < 12) {
-      months.push(currentMonth + 1);
+    if (project.monthsPerPage === 2) {
+      // For 2 months per page, each page stores the first month of the pair
+      // Page 1: month = 1 (Jan), display Jan & Feb
+      // Page 2: month = 3 (Mar), display Mar & Apr
+      // Page 3: month = 5 (May), display May & Jun
+      // etc.
+      const secondMonth = currentMonth + 1;
+      if (secondMonth <= 12) {
+        months.push(secondMonth);
+      }
     }
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:79',message:'getMonthsToDisplay',data:{pageIndex,currentMonth,monthsPerPage:project.monthsPerPage,months,pageMonth:page.month},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
     
     return months;
   };
 
   return (
-    <div ref={containerRef} className="w-full h-full flex items-center justify-center">
+    <div ref={containerRef} className="w-full h-full flex items-center justify-center p-4">
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
@@ -88,8 +104,8 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
           aspectRatio: `${project.orientation === "portrait" ? project.format.width : project.format.height} / ${project.orientation === "portrait" ? project.format.height : project.format.width}`,
           maxHeight: "100%",
           maxWidth: "100%",
-          width: "auto",
-          height: "80%",
+          width: project.orientation === "portrait" ? "auto" : "100%",
+          height: project.orientation === "portrait" ? "100%" : "auto",
         }}
       >
         {/* Image Frame */}
@@ -154,11 +170,14 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                     )}>{d}</div>
                   ))}
                   {Array.from({ length: 35 }, (_, i) => {
+                    // For cover page, show sample calendar
+                    // First row starts with Sunday (index 0)
                     const dayOfWeek = i % 7;
+                    const isSunday = dayOfWeek === 0;
                     return (
                       <div key={i} className={cn(
-                        dayOfWeek === 0 ? "text-red-500/70" : "text-muted-foreground/50"
-                      )}>{(i % 31) + 1}</div>
+                        isSunday ? "text-red-500" : "text-muted-foreground/50"
+                      )}>{i < 31 ? i + 1 : ""}</div>
                     );
                   })}
                 </div>
@@ -191,14 +210,14 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                         ))}
                         {days.map((day, i) => {
                           // Calculate the actual day of week (0 = Sunday, 6 = Saturday)
-                          const dayOfWeek = (i - firstDay) % 7;
-                          // Normalize to 0-6 range (Sunday = 0, Saturday = 6)
-                          const normalizedDayOfWeek = dayOfWeek < 0 ? dayOfWeek + 7 : dayOfWeek;
-                          const isSunday = normalizedDayOfWeek === 0;
+                          // firstDay is the day of week for the 1st of the month
+                          // For each day, calculate: (firstDay + day - 1) % 7
+                          const dayOfWeek = day !== null ? (firstDay + day - 1) % 7 : -1;
+                          const isSunday = dayOfWeek === 0;
                           return (
                             <div key={i} className={cn(
                               day === null && "opacity-0",
-                              day !== null && isSunday ? "text-red-500/70" : "text-muted-foreground/50"
+                              day !== null && isSunday ? "text-red-500" : "text-muted-foreground/50"
                             )}>
                               {day}
                             </div>
