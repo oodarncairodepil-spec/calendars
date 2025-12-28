@@ -69,31 +69,32 @@ const Editor = () => {
     prevProjectIdRef.current = projectId;
 
     if (projectId) {
-      // Only check if project exists and set active if projectId actually changed
-      // This prevents resetting activePageIndex when project properties are updated
-      if (projectIdChanged) {
-        // Get current projects from store to check if project exists
-        const currentProjects = useAppStore.getState().projects;
-        const exists = currentProjects.find((p) => p.id === projectId);
-        if (exists) {
-          if (activeProjectId !== projectId) {
-            setActiveProject(projectId);
-          }
-        } else {
-          navigate("/");
+      // Check if project exists in current projects array (from subscription)
+      const exists = projects.find((p) => p.id === projectId);
+      
+      if (exists) {
+        // Set active project if:
+        // 1. projectId changed (URL changed), OR
+        // 2. project is not currently active (projects just loaded from Supabase)
+        // This prevents resetting activePageIndex when project properties are updated
+        if (projectIdChanged || activeProjectId !== projectId) {
+          setActiveProject(projectId);
         }
+      } else if (projectIdChanged && projects.length > 0) {
+        // Only navigate if projectId changed, projects are loaded, but project doesn't exist
+        // If projects.length is 0, projects might still be loading, so don't navigate yet
+        navigate("/");
       }
     } else if (!activeProjectId && !projectsInitializedRef.current) {
       // Only set first project on initial mount, not on every projects array change
-      const currentProjects = useAppStore.getState().projects;
-      if (currentProjects.length > 0) {
-        setActiveProject(currentProjects[0].id);
+      if (projects.length > 0) {
+        setActiveProject(projects[0].id);
         projectsInitializedRef.current = true;
       }
     }
     // Don't auto-show dialog on reload - user should navigate to dashboard to create new project
-    // Note: We use useAppStore.getState() to get projects without adding it to dependencies
-  }, [projectId, activeProjectId, setActiveProject, navigate]); // Removed 'projects' to prevent reset on property updates
+    // Note: 'projects' is in dependencies to handle case when projects are loaded from Supabase
+  }, [projectId, activeProjectId, setActiveProject, navigate, projects]); // Added 'projects' back to handle async loading
 
   // Get current project - defined early so it can be used throughout the component
   const project = projects.find(p => p.id === activeProjectId);
