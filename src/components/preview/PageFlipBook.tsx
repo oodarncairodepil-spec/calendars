@@ -6,6 +6,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getHolidaysForMonth, HolidayMap } from "@/lib/holidays-service";
+import { useFontsLoaded } from "@/lib/font-loader";
 
 interface PageFlipBookProps {
   project: CalendarProject;
@@ -27,6 +28,7 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
   const [flipDirection, setFlipDirection] = useState<"forward" | "backward">("forward");
   const [holidaysMap, setHolidaysMap] = useState<{ [month: number]: HolidayMap }>({});
   const { getAssetById } = useAppStore();
+  const fontsLoaded = useFontsLoaded(); // Wait for fonts to load
   
   // Year for holidays (default to 2026)
   const currentYear = 2026;
@@ -107,7 +109,7 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
     const marginBottomPercent = (margins.bottom / project.format.height) * 100;
     const marginLeftPercent = (margins.left / project.format.width) * 100;
 
-    // Get font family from presets
+    // Get font family from presets - ensure exact match with Google Fonts
     const selectedFont = FONT_PRESETS.find(f => f.name === (project.fontFamily || 'Inter')) || FONT_PRESETS[0];
     const fontFamily = selectedFont.family;
 

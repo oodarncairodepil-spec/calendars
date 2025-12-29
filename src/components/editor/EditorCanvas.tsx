@@ -4,6 +4,7 @@ import { useAppStore } from "@/store/useAppStore";
 import { CalendarProject, MONTH_NAMES, MONTH_NAMES_SHORT, DAY_NAMES_SHORT, FONT_PRESETS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { getHolidaysForMonth, HolidayMap } from "@/lib/holidays-service";
+import { useFontsLoaded } from "@/lib/font-loader";
 
 // Helper function to get days in a month
 const getDaysInMonth = (month: number, year: number = 2025): number => {
@@ -50,6 +51,7 @@ export const EditorCanvas = ({ project, pageIndex, hideEditorBorders = false }: 
   const canvasRef = useRef<HTMLDivElement>(null);
   const { getAssetById, selectedFrameType, setSelectedFrame, updatePageLayout } = useAppStore();
   const [holidaysMap, setHolidaysMap] = useState<{ [month: number]: HolidayMap }>({});
+  const fontsLoaded = useFontsLoaded(); // Wait for fonts to load
 
   const page = project.months[pageIndex];
   if (!page) return null;
@@ -57,7 +59,7 @@ export const EditorCanvas = ({ project, pageIndex, hideEditorBorders = false }: 
   // Year for holidays (default to 2026)
   const currentYear = 2026;
   
-  // Get font family from presets
+  // Get font family from presets - ensure exact match with Google Fonts
   const selectedFont = FONT_PRESETS.find(f => f.name === (project.fontFamily || 'Inter')) || FONT_PRESETS[0];
   const fontFamily = selectedFont.family;
 
