@@ -1,7 +1,7 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAppStore } from "@/store/useAppStore";
-import { CalendarProject, MONTH_NAMES, DAY_NAMES_SHORT, FONT_PRESETS } from "@/lib/types";
+import { CalendarProject, MONTH_NAMES, MONTH_NAMES_SHORT, DAY_NAMES_SHORT, FONT_PRESETS } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { getHolidaysForMonth, HolidayMap } from "@/lib/holidays-service";
 
@@ -255,6 +255,25 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                   // Sort by date
                   monthHolidaysList.sort((a, b) => new Date(a.date).getDate() - new Date(b.date).getDate());
                   
+                  // Group holidays by name and emoji, then combine consecutive dates
+                  const groupedHolidays: Array<{ dates: number[]; name: string; emoji?: string | null }> = [];
+                  const holidayGroups = new Map<string, { dates: number[]; name: string; emoji?: string | null }>();
+                  
+                  monthHolidaysList.forEach(holiday => {
+                    const key = `${holiday.name}|${holiday.emoji || ''}`;
+                    if (!holidayGroups.has(key)) {
+                      holidayGroups.set(key, { dates: [], name: holiday.name, emoji: holiday.emoji });
+                    }
+                    const day = new Date(holiday.date).getDate();
+                    holidayGroups.get(key)!.dates.push(day);
+                  });
+                  
+                  // Convert map to array and sort dates within each group
+                  groupedHolidays.push(...Array.from(holidayGroups.values()));
+                  groupedHolidays.forEach(group => {
+                    group.dates.sort((a, b) => a - b);
+                  });
+                  
                   // #region agent log
                   fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:250',message:'rendering month with holidays',data:{monthNum,monthHolidaysCount:monthHolidaysList.length,monthHolidaysKeys:Object.keys(monthHolidays).slice(0,5),holidayDates:monthHolidaysList.map(h=>new Date(h.date).getDate())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
                   // #endregion
@@ -302,19 +321,33 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                         // #region agent log
                         fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:292',message:'checking holidays render condition',data:{monthHolidaysListLength:monthHolidaysList.length,shouldRender:monthHolidaysList.length > 0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
                         // #endregion
-                        return monthHolidaysList.length > 0 ? (
+                        return groupedHolidays.length > 0 ? (
                           <div className="mt-1 pt-1 border-t border-border/50 overflow-visible">
                             <div className="text-[10px] leading-tight space-y-0.5 text-left">
-                              {monthHolidaysList.map((holiday, hIdx) => {
-                                const date = new Date(holiday.date);
-                                const day = date.getDate();
-                                const monthName = MONTH_NAMES[monthNum - 1];
+                              {groupedHolidays.map((group, hIdx) => {
+                                const monthNameShort = MONTH_NAMES_SHORT[monthNum - 1];
+                                // Format dates: if consecutive, show range (e.g., "16-17"), otherwise show single date
+                                let dateStr: string;
+                                if (group.dates.length === 1) {
+                                  dateStr = `${group.dates[0]} ${monthNameShort}`;
+                                } else {
+                                  // Check if dates are consecutive
+                                  const sortedDates = [...group.dates].sort((a, b) => a - b);
+                                  const isConsecutive = sortedDates.every((d, idx) => 
+                                    idx === 0 || d === sortedDates[idx - 1] + 1
+                                  );
+                                  if (isConsecutive) {
+                                    dateStr = `${sortedDates[0]}-${sortedDates[sortedDates.length - 1]} ${monthNameShort}`;
+                                  } else {
+                                    dateStr = sortedDates.map(d => `${d} ${monthNameShort}`).join(', ');
+                                  }
+                                }
                                 // #region agent log
-                                fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:300',message:'rendering holiday item',data:{hIdx,day,monthName,holidayName:holiday.name,holidayEmoji:holiday.emoji},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                                fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:330',message:'rendering holiday item',data:{hIdx,dateStr,holidayName:group.name,holidayEmoji:group.emoji},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
                                 // #endregion
                                 return (
                                   <div key={hIdx} className="text-foreground/80">
-                                    <span className="text-red-500 font-semibold">{day} {monthName}:</span> {holiday.name} {holiday.emoji && <span>{holiday.emoji}</span>}
+                                    <span className="text-red-500 font-semibold">{dateStr}:</span> {group.name} {group.emoji && <span>{group.emoji}</span>}
                                   </div>
                                 );
                               })}

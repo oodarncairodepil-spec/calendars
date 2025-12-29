@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, ChevronLeft, ChevronRight } from "lucide-react";
-import { CalendarProject, MONTH_NAMES, DAY_NAMES_SHORT, FONT_PRESETS } from "@/lib/types";
+import { CalendarProject, MONTH_NAMES, MONTH_NAMES_SHORT, DAY_NAMES_SHORT, FONT_PRESETS } from "@/lib/types";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -244,6 +244,25 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                   // Sort by date
                   monthHolidaysList.sort((a, b) => new Date(a.date).getDate() - new Date(b.date).getDate());
                   
+                  // Group holidays by name and emoji, then combine consecutive dates
+                  const groupedHolidays: Array<{ dates: number[]; name: string; emoji?: string | null }> = [];
+                  const holidayGroups = new Map<string, { dates: number[]; name: string; emoji?: string | null }>();
+                  
+                  monthHolidaysList.forEach(holiday => {
+                    const key = `${holiday.name}|${holiday.emoji || ''}`;
+                    if (!holidayGroups.has(key)) {
+                      holidayGroups.set(key, { dates: [], name: holiday.name, emoji: holiday.emoji });
+                    }
+                    const day = new Date(holiday.date).getDate();
+                    holidayGroups.get(key)!.dates.push(day);
+                  });
+                  
+                  // Convert map to array and sort dates within each group
+                  groupedHolidays.push(...Array.from(holidayGroups.values()));
+                  groupedHolidays.forEach(group => {
+                    group.dates.sort((a, b) => a - b);
+                  });
+                  
                   return (
                     <div key={monthNum} className={cn(
                       "flex-1",
@@ -283,16 +302,30 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                         })}
                       </div>
                       {/* Holidays info below calendar */}
-                      {monthHolidaysList.length > 0 && (
+                      {groupedHolidays.length > 0 && (
                         <div className="mt-1 pt-1 border-t border-border/50 overflow-visible">
                           <div className="text-[10px] leading-tight space-y-0.5 text-left">
-                            {monthHolidaysList.map((holiday, hIdx) => {
-                              const date = new Date(holiday.date);
-                              const day = date.getDate();
-                              const monthName = MONTH_NAMES[monthNum - 1];
+                            {groupedHolidays.map((group, hIdx) => {
+                              const monthNameShort = MONTH_NAMES_SHORT[monthNum - 1];
+                              // Format dates: if consecutive, show range (e.g., "16-17"), otherwise show single date
+                              let dateStr: string;
+                              if (group.dates.length === 1) {
+                                dateStr = `${group.dates[0]} ${monthNameShort}`;
+                              } else {
+                                // Check if dates are consecutive
+                                const sortedDates = [...group.dates].sort((a, b) => a - b);
+                                const isConsecutive = sortedDates.every((d, idx) => 
+                                  idx === 0 || d === sortedDates[idx - 1] + 1
+                                );
+                                if (isConsecutive) {
+                                  dateStr = `${sortedDates[0]}-${sortedDates[sortedDates.length - 1]} ${monthNameShort}`;
+                                } else {
+                                  dateStr = sortedDates.map(d => `${d} ${monthNameShort}`).join(', ');
+                                }
+                              }
                               return (
                                 <div key={hIdx} className="text-foreground/80">
-                                  <span className="text-red-500 font-semibold">{day} {monthName}:</span> {holiday.name} {holiday.emoji && <span>{holiday.emoji}</span>}
+                                  <span className="text-red-500 font-semibold">{dateStr}:</span> {group.name} {group.emoji && <span>{group.emoji}</span>}
                                 </div>
                               );
                             })}

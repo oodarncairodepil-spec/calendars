@@ -173,6 +173,11 @@ export const MONTH_NAMES = [
   'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
 ];
 
+export const MONTH_NAMES_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
+  'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+];
+
 // JavaScript Date.getDay() returns: 0 = Sunday, 1 = Monday, ..., 6 = Saturday
 // For Indonesian calendar display, we map: Minggu (0), Senin (1), Selasa (2), Rabu (3), Kamis (4), Jumat (5), Sabtu (6)
 export const DAY_NAMES_SHORT = ['M', 'S', 'S', 'R', 'K', 'J', 'S']; // Minggu (0), Senin (1), Selasa (2), Rabu (3), Kamis (4), Jumat (5), Sabtu (6)
