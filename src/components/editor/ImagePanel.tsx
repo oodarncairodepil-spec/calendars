@@ -65,12 +65,16 @@ export const ImagePanel = () => {
     ? groups.filter(g => g.name.toLowerCase().includes(groupSearch.toLowerCase()))
     : [];
   
-  // Only show images if a group is selected
+  // Only show images if a group is selected - STRICT filtering by group
   const filteredAssets = selectedGroupId 
     ? assets.filter((a) => {
+        // Ensure groupIds exists and is an array
+        const assetGroupIds = Array.isArray(a.groupIds) ? a.groupIds : [];
+        // Must be in the selected group
+        const matchesGroup = assetGroupIds.includes(selectedGroupId);
+        // And match search if provided
         const matchesSearch = imageSearch.trim() === "" || a.name.toLowerCase().includes(imageSearch.toLowerCase());
-        const matchesGroup = a.groupIds.includes(selectedGroupId);
-        return matchesSearch && matchesGroup;
+        return matchesGroup && matchesSearch;
       })
     : [];
   
@@ -179,7 +183,7 @@ export const ImagePanel = () => {
           <div className="text-center py-8 text-muted-foreground">
             <ImageIcon className="w-8 h-8 mx-auto mb-2 opacity-50" />
             <p className="text-sm">No images in this group</p>
-            {search && <p className="text-xs mt-1">Try a different search term</p>}
+            {imageSearch.trim() && <p className="text-xs mt-1">Try a different search term</p>}
           </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">

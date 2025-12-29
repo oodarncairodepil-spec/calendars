@@ -9,6 +9,7 @@ import Dashboard from "./pages/Dashboard";
 import Editor from "./pages/Editor";
 import Library from "./pages/Library";
 import Settings from "./pages/Settings";
+import Holidays from "./pages/Holidays";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -28,6 +29,7 @@ const AppContent = () => {
       <Route path="/editor" element={<Editor />} />
       <Route path="/editor/:projectId" element={<Editor />} />
       <Route path="/library" element={<Library />} />
+      <Route path="/holidays" element={<Holidays />} />
       <Route path="/settings" element={<Settings />} />
       <Route path="*" element={<NotFound />} />
     </Routes>

@@ -1,6 +1,6 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { Calendar, FolderOpen, Image, Settings } from "lucide-react";
+import { Calendar, FolderOpen, Image, Settings, CalendarDays } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useAppStore } from "@/store/useAppStore";
@@ -87,6 +87,7 @@ export const TopNav = () => {
     { to: "/", icon: <Calendar className="w-4 h-4" />, label: "Dashboard" },
     { to: "/editor", icon: <FolderOpen className="w-4 h-4" />, label: "Editor", onClick: handleEditorClick },
     { to: "/library", icon: <Image className="w-4 h-4" />, label: "Library" },
+    { to: "/holidays", icon: <CalendarDays className="w-4 h-4" />, label: "Holidays" },
     { to: "/settings", icon: <Settings className="w-4 h-4" />, label: "Settings" },
   ];
 
@@ -186,6 +187,7 @@ export const MobileNav = () => {
     { to: "/", icon: <Calendar className="w-5 h-5" />, label: "Home" },
     { to: "/editor", icon: <FolderOpen className="w-5 h-5" />, label: "Editor", onClick: handleEditorClick },
     { to: "/library", icon: <Image className="w-5 h-5" />, label: "Library" },
+    { to: "/holidays", icon: <CalendarDays className="w-5 h-5" />, label: "Holidays" },
     { to: "/settings", icon: <Settings className="w-5 h-5" />, label: "Settings" },
   ];
 

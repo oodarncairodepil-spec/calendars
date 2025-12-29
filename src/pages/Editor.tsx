@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -15,6 +15,7 @@ import {
   Maximize,
   Lock,
   Unlock,
+  Download,
 } from "lucide-react";
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
@@ -33,6 +34,8 @@ import { EditorCanvas } from "@/components/editor/EditorCanvas";
 import { ImagePanel } from "@/components/editor/ImagePanel";
 import { PageFlipBook } from "@/components/preview/PageFlipBook";
 import { saveState } from "@/lib/storage";
+import jsPDF from "jspdf";
+import { toPng } from "html-to-image";
 
 const Editor = () => {
   const { projectId } = useParams();
@@ -127,6 +130,107 @@ const Editor = () => {
     return MONTH_NAMES[(currentPage.month as number) - 1];
   };
 
+  const handleDownloadPDF = async () => {
+    if (!project) return;
+
+    try {
+      toast({
+        title: "Generating PDF...",
+        description: "Please wait while we prepare your calendar.",
+      });
+
+      // Get the format dimensions in mm
+      const width = project.format.unit === "mm" 
+        ? project.format.width 
+        : project.format.width * 0.264583; // Convert px to mm (1px = 0.264583mm)
+      const height = project.format.unit === "mm"
+        ? project.format.height
+        : project.format.height * 0.264583;
+
+      // Create PDF with correct orientation
+      const pdf = new jsPDF({
+        orientation: project.orientation === "landscape" ? "landscape" : "portrait",
+        unit: "mm",
+        format: [width, height],
+      });
+
+      // Store original page index to restore later
+      const originalPageIndex = activePageIndex;
+
+      // Process each page
+      for (let i = 0; i < project.months.length; i++) {
+        // Set active page to render it
+        setActivePage(i);
+
+        // Wait for DOM to update and React to re-render
+        await new Promise((resolve) => setTimeout(resolve, 300));
+
+        // Find the canvas element using data attribute
+        let canvasContainer = document.querySelector(
+          `[data-page-index="${i}"]`
+        ) as HTMLElement;
+
+        // If not found by data attribute, try to find visible canvas
+        if (!canvasContainer || canvasContainer.offsetParent === null) {
+          const allContainers = document.querySelectorAll(
+            ".relative.bg-card.shadow-page.rounded-sm.overflow-hidden"
+          );
+          canvasContainer = Array.from(allContainers).find((el) => {
+            const rect = el.getBoundingClientRect();
+            return rect.width > 0 && rect.height > 0 && el.offsetParent !== null;
+          }) as HTMLElement;
+        }
+
+        if (canvasContainer) {
+          try {
+            // Capture the canvas
+            const dataUrl = await toPng(canvasContainer, {
+              backgroundColor: "#ffffff",
+              quality: 1.0,
+              pixelRatio: 2, // Higher quality
+              cacheBust: true,
+            });
+
+            // Add page to PDF (except first page, which is already created)
+            if (i > 0) {
+              pdf.addPage([width, height], project.orientation === "landscape" ? "landscape" : "portrait");
+            }
+
+            // Add image to PDF
+            pdf.addImage(dataUrl, "PNG", 0, 0, width, height, undefined, "FAST");
+          } catch (imgError) {
+            console.error(`Failed to capture page ${i + 1}:`, imgError);
+          }
+        }
+      }
+
+      // Restore original page index
+      setActivePage(originalPageIndex);
+
+      // Wait a bit before saving to ensure UI is restored
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      // Generate filename (sanitize for filename)
+      const sanitizedTitle = (project.title || "Calendar").replace(/[^a-z0-9]/gi, "_").toLowerCase();
+      const filename = `${sanitizedTitle}.pdf`;
+
+      // Save PDF
+      pdf.save(filename);
+
+      toast({
+        title: "PDF Downloaded",
+        description: `Your calendar has been saved as ${filename}`,
+      });
+    } catch (error) {
+      console.error("Failed to generate PDF:", error);
+      toast({
+        title: "Error",
+        description: "Failed to generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   if (isPreviewMode && project) {
     return <PageFlipBook project={project} onClose={() => setPreviewMode(false)} />;
   }
@@ -193,6 +297,16 @@ const Editor = () => {
           >
             <Eye className="w-4 h-4 mr-2" />
             Preview
+          </Button>
+
+          <Button
+            variant="default"
+            size="sm"
+            onClick={handleDownloadPDF}
+            disabled={!project}
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Download PDF
           </Button>
         </div>
       </header>
@@ -375,6 +489,142 @@ const Editor = () => {
   );
 };
 
+// Margin Inputs Component with local state
+const MarginInputs = ({ page, activePageIndex, updatePageMargins }: { page: any; activePageIndex: number; updatePageMargins: any }) => {
+  const currentMargins = page.margins || { top: 10, right: 10, bottom: 10, left: 10 };
+  
+  const [marginValues, setMarginValues] = useState({
+    top: String(currentMargins.top),
+    right: String(currentMargins.right),
+    bottom: String(currentMargins.bottom),
+    left: String(currentMargins.left),
+  });
+  
+  // Sync with page margins when page changes
+  useEffect(() => {
+    const margins = page.margins || { top: 10, right: 10, bottom: 10, left: 10 };
+    setMarginValues({
+      top: String(margins.top),
+      right: String(margins.right),
+      bottom: String(margins.bottom),
+      left: String(margins.left),
+    });
+  }, [page.margins]);
+  
+  const handleMarginChange = (side: 'top' | 'right' | 'bottom' | 'left', value: string) => {
+    // Update local state immediately for responsive UI
+    setMarginValues(prev => ({ ...prev, [side]: value }));
+    
+    // Parse and update actual margins
+    if (value === '' || value === '-') {
+      // Allow empty or negative sign while typing
+      return;
+    }
+    
+    const numValue = parseFloat(value);
+    if (isNaN(numValue) || numValue < 0) {
+      // Reset to 0 if invalid
+      const newMargins = {
+        ...currentMargins,
+        [side]: 0,
+      };
+      updatePageMargins(activePageIndex, newMargins, page.month !== 'cover');
+      return;
+    }
+    
+    const newMargins = {
+      ...currentMargins,
+      [side]: numValue,
+    };
+    updatePageMargins(activePageIndex, newMargins, page.month !== 'cover');
+  };
+  
+  const handleBlur = (side: 'top' | 'right' | 'bottom' | 'left') => {
+    // When user leaves input, ensure value is valid
+    const value = marginValues[side];
+    if (value === '' || value === '-') {
+      // Reset to 0 if empty
+      setMarginValues(prev => ({ ...prev, [side]: '0' }));
+      const newMargins = {
+        ...currentMargins,
+        [side]: 0,
+      };
+      updatePageMargins(activePageIndex, newMargins, page.month !== 'cover');
+    } else {
+      // Ensure it's a valid number
+      const numValue = parseFloat(value);
+      if (isNaN(numValue) || numValue < 0) {
+        setMarginValues(prev => ({ ...prev, [side]: '0' }));
+        const newMargins = {
+          ...currentMargins,
+          [side]: 0,
+        };
+        updatePageMargins(activePageIndex, newMargins, page.month !== 'cover');
+      }
+    }
+  };
+  
+  return (
+    <div className="space-y-3 pt-3">
+      <div className="grid grid-cols-2 gap-3">
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Top</label>
+          <Input
+            type="number"
+            min="0"
+            step="1"
+            value={marginValues.top}
+            onChange={(e) => handleMarginChange('top', e.target.value)}
+            onBlur={() => handleBlur('top')}
+            className="h-8 text-sm"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Right</label>
+          <Input
+            type="number"
+            min="0"
+            step="1"
+            value={marginValues.right}
+            onChange={(e) => handleMarginChange('right', e.target.value)}
+            onBlur={() => handleBlur('right')}
+            className="h-8 text-sm"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Bottom</label>
+          <Input
+            type="number"
+            min="0"
+            step="1"
+            value={marginValues.bottom}
+            onChange={(e) => handleMarginChange('bottom', e.target.value)}
+            onBlur={() => handleBlur('bottom')}
+            className="h-8 text-sm"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-muted-foreground mb-1 block">Left</label>
+          <Input
+            type="number"
+            min="0"
+            step="1"
+            value={marginValues.left}
+            onChange={(e) => handleMarginChange('left', e.target.value)}
+            onBlur={() => handleBlur('left')}
+            className="h-8 text-sm"
+          />
+        </div>
+      </div>
+      {page.month !== 'cover' && (
+        <p className="text-xs text-muted-foreground mt-2">
+          Changes will apply to all month pages
+        </p>
+      )}
+    </div>
+  );
+};
+
 // Properties Panel Component
 const PropertiesPanel = () => {
   const {
@@ -385,6 +635,7 @@ const PropertiesPanel = () => {
     updateImageTransform,
     toggleGrid,
     updateCoverText,
+    updatePageMargins,
     getAssetById,
     selectedFrameType,
     setSelectedFrame,
@@ -563,6 +814,22 @@ const PropertiesPanel = () => {
           </AccordionItem>
         </Accordion>
       )}
+
+      {/* Page Margins */}
+      <Accordion type="single" collapsible defaultValue="" className="w-full">
+        <AccordionItem value="page-margins" className="border-none">
+          <AccordionTrigger className="py-0 hover:no-underline">
+            <h3 className="font-semibold flex items-center gap-2">
+              <Settings className="w-4 h-4" />
+              Page Margins
+              {page.month === 'cover' ? ' (Cover)' : ' (Month Pages)'}
+            </h3>
+          </AccordionTrigger>
+          <AccordionContent>
+            <MarginInputs page={page} activePageIndex={activePageIndex} updatePageMargins={updatePageMargins} />
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
 
       {/* Page Properties - Only show for non-cover pages */}
       {page.month !== 'cover' && (

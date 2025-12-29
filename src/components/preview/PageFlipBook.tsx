@@ -5,6 +5,7 @@ import { CalendarProject, MONTH_NAMES, DAY_NAMES_SHORT, FONT_PRESETS } from "@/l
 import { useAppStore } from "@/store/useAppStore";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { getHolidaysForMonth, HolidayMap } from "@/lib/holidays-service";
 
 interface PageFlipBookProps {
   project: CalendarProject;
@@ -24,7 +25,11 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
   const [currentPage, setCurrentPage] = useState(0);
   const [isFlipping, setIsFlipping] = useState(false);
   const [flipDirection, setFlipDirection] = useState<"forward" | "backward">("forward");
+  const [holidaysMap, setHolidaysMap] = useState<{ [month: number]: HolidayMap }>({});
   const { getAssetById, imageFit } = useAppStore();
+  
+  // Year for holidays (default to 2026)
+  const currentYear = 2026;
 
   const totalPages = project.months.length;
 
@@ -55,6 +60,31 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
     }, 600);
   };
 
+  // Load holidays for all months
+  useEffect(() => {
+    const loadAllHolidays = async () => {
+      const monthsToLoad = new Set<number>();
+      project.months.forEach((p) => {
+        if (p.month !== 'cover') {
+          monthsToLoad.add(p.month as number);
+          if (project.monthsPerPage === 2 && (p.month as number) < 12) {
+            monthsToLoad.add((p.month as number) + 1);
+          }
+        }
+      });
+      
+      for (const monthNum of monthsToLoad) {
+        if (!holidaysMap[monthNum]) {
+          const holidays = await getHolidaysForMonth(currentYear, monthNum);
+          setHolidaysMap(prev => ({ ...prev, [monthNum]: holidays }));
+        }
+      }
+    };
+    
+    loadAllHolidays();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.months, project.monthsPerPage]);
+
   const renderPage = (pageIndex: number) => {
     const page = project.months[pageIndex];
     if (!page) return null;
@@ -62,6 +92,15 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
     const assignedImage = page.assignedImageId ? getAssetById(page.assignedImageId) : null;
     const { imageFrame, calendarGridFrame } = page.layout;
     const transform = page.imageTransform;
+    
+    // Get margins, default to 10mm if not set
+    const margins = page.margins || { top: 10, right: 10, bottom: 10, left: 10 };
+    
+    // Convert margins to percentage based on page size
+    const marginTopPercent = (margins.top / project.format.height) * 100;
+    const marginRightPercent = (margins.right / project.format.width) * 100;
+    const marginBottomPercent = (margins.bottom / project.format.height) * 100;
+    const marginLeftPercent = (margins.left / project.format.width) * 100;
 
     // Get font family from presets
     const selectedFont = FONT_PRESETS.find(f => f.name === (project.fontFamily || 'Inter')) || FONT_PRESETS[0];
@@ -77,23 +116,33 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
         className="w-full h-full bg-card relative overflow-hidden"
         style={{ fontFamily: fontFamily }}
       >
-        {/* Cover Page Top Text */}
-        {page.month === "cover" && page.coverTextTop && (
-          <div className="absolute top-0 left-0 right-0 p-6 text-center z-10 pointer-events-none">
-            <p className="text-base font-medium text-foreground whitespace-pre-wrap">{page.coverTextTop}</p>
-          </div>
-        )}
-
-        {/* Image Frame */}
+        {/* Content area with margins */}
         <div
-          className="absolute overflow-hidden"
+          className="absolute"
           style={{
-            left: `${imageFrame.x * 100}%`,
-            top: `${imageFrame.y * 100}%`,
-            width: `${imageFrame.w * 100}%`,
-            height: `${imageFrame.h * 100}%`,
+            top: `${marginTopPercent}%`,
+            right: `${marginRightPercent}%`,
+            bottom: `${marginBottomPercent}%`,
+            left: `${marginLeftPercent}%`,
           }}
         >
+          {/* Cover Page Top Text */}
+          {page.month === "cover" && page.coverTextTop && (
+            <div className="absolute top-0 left-0 right-0 p-6 text-center z-10 pointer-events-none">
+              <p className="text-base font-medium text-foreground whitespace-pre-wrap">{page.coverTextTop}</p>
+            </div>
+          )}
+
+          {/* Image Frame */}
+          <div
+            className="absolute overflow-hidden"
+            style={{
+              left: `${imageFrame.x * 100}%`,
+              top: `${imageFrame.y * 100}%`,
+              width: `${imageFrame.w * 100}%`,
+              height: `${imageFrame.h * 100}%`,
+            }}
+          >
           {assignedImage ? (
             <img
               src={assignedImage.url}
@@ -111,21 +160,21 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
           )}
         </div>
 
-        {/* Calendar Grid */}
-        {page.showGrid && (
-          <div
-            className="absolute bg-card"
-            style={{
-              left: `${calendarGridFrame.x * 100}%`,
-              top: `${calendarGridFrame.y * 100}%`,
-              width: `${calendarGridFrame.w * 100}%`,
-              height: `${calendarGridFrame.h * 100}%`,
-            }}
-          >
+          {/* Calendar Grid */}
+          {page.showGrid && (
+            <div
+              className="absolute bg-card overflow-visible"
+              style={{
+                left: `${calendarGridFrame.x * 100}%`,
+                top: `${calendarGridFrame.y * 100}%`,
+                width: `${calendarGridFrame.w * 100}%`,
+                height: `${calendarGridFrame.h * 100}%`,
+              }}
+            >
             {page.month === "cover" ? (
-              <div className="w-full h-full p-3">
-                <div className="text-center mb-2">
-                  <span className="font-display font-bold text-lg">{getMonthName()}</span>
+              <div className="w-full h-full p-1">
+                <div className="text-center mb-1">
+                  <span className="font-display font-bold text-base">{getMonthName()}</span>
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-xs text-center">
                   {DAY_NAMES_SHORT.map((d, i) => (
@@ -139,18 +188,18 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                     // First row starts with Sunday (index 0)
                     const dayOfWeek = i % 7;
                     const isSunday = dayOfWeek === 0;
-                    return (
-                      <div key={i} className={cn(
-                        "py-1",
-                        isSunday && "text-red-500"
-                      )}>{i < 31 ? i + 1 : ""}</div>
-                    );
+                      return (
+                        <div key={i} className={cn(
+                          "py-0.5",
+                          isSunday && "text-red-500"
+                        )}>{i < 31 ? i + 1 : ""}</div>
+                      );
                   })}
                 </div>
               </div>
             ) : (
               <div className={cn(
-                "w-full h-full p-3",
+                "w-full h-full p-1",
                 project.monthsPerPage === 2 ? "flex gap-4" : ""
               )}>
                 {(() => {
@@ -184,10 +233,16 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                     return days;
                   };
                   
-                  const days = generateCalendarDays(monthNum);
+                  const days = generateCalendarDays(monthNum, currentYear);
                   const monthName = MONTH_NAMES[monthNum - 1];
-                  const firstDay = getFirstDayOfMonth(monthNum);
+                  const firstDay = getFirstDayOfMonth(monthNum, currentYear);
                   const currentMonth = page.month as number;
+                  const monthHolidays = holidaysMap[monthNum] || {};
+                  
+                  // Get list of holidays for this month (deduplicate by date)
+                  const monthHolidaysList = Object.values(monthHolidays).flat();
+                  // Sort by date
+                  monthHolidaysList.sort((a, b) => new Date(a.date).getDate() - new Date(b.date).getDate());
                   
                   return (
                     <div key={monthNum} className={cn(
@@ -195,14 +250,14 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                       project.monthsPerPage === 2 && monthNum === currentMonth ? "border-r border-border pr-2" : "",
                       project.monthsPerPage === 2 && monthNum === currentMonth + 1 ? "pl-2" : ""
                     )}>
-                      <div className="text-center mb-2">
-                        <span className="font-display font-bold text-lg">{monthName}</span>
+                      <div className="text-center mb-1">
+                        <span className="font-display font-bold text-base">{monthName}</span>
                       </div>
                       <div className="grid grid-cols-7 gap-1 text-xs text-center">
                         {DAY_NAMES_SHORT.map((d, i) => (
                           <div key={d} className={cn(
                             "font-medium",
-                            i === 6 ? "text-red-500" : "text-muted-foreground" // Minggu (index 6) is red
+                            i === 0 ? "text-red-500" : "text-muted-foreground" // Minggu (index 0) is red
                           )}>{d}</div>
                         ))}
                         {days.map((day, i) => {
@@ -211,17 +266,39 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                           // For each day, calculate: (firstDay + day - 1) % 7
                           const dayOfWeek = day !== null ? (firstDay + day - 1) % 7 : -1;
                           const isSunday = dayOfWeek === 0;
+                          
+                          // Check if this date is a holiday
+                          const dateKey = day !== null ? `${currentYear}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}` : null;
+                          const isHoliday = dateKey && monthHolidays[dateKey] && monthHolidays[dateKey].length > 0;
+                          
                           return (
                             <div key={i} className={cn(
-                              "py-1",
+                              "py-0.5",
                               day === null && "opacity-0",
-                              day !== null && isSunday && "text-red-500"
+                              day !== null && isHoliday ? "text-red-500 font-semibold" : day !== null && isSunday ? "text-red-500" : "text-muted-foreground/50"
                             )}>
                               {day}
                             </div>
                           );
                         })}
                       </div>
+                      {/* Holidays info below calendar */}
+                      {monthHolidaysList.length > 0 && (
+                        <div className="mt-1 pt-1 border-t border-border/50 overflow-visible">
+                          <div className="text-[10px] leading-tight space-y-0.5 text-left">
+                            {monthHolidaysList.map((holiday, hIdx) => {
+                              const date = new Date(holiday.date);
+                              const day = date.getDate();
+                              const monthName = MONTH_NAMES[monthNum - 1];
+                              return (
+                                <div key={hIdx} className="text-foreground/80">
+                                  <span className="text-red-500 font-semibold">{day} {monthName}:</span> {holiday.name} {holiday.emoji && <span>{holiday.emoji}</span>}
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
@@ -230,12 +307,13 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
           </div>
         )}
 
-        {/* Cover Page Bottom Text */}
-        {page.month === "cover" && page.coverTextBottom && (
-          <div className="absolute bottom-0 left-0 right-0 p-6 text-center z-10 pointer-events-none">
-            <p className="text-base font-medium text-foreground whitespace-pre-wrap">{page.coverTextBottom}</p>
-          </div>
-        )}
+          {/* Cover Page Bottom Text */}
+          {page.month === "cover" && page.coverTextBottom && (
+            <div className="absolute bottom-0 left-0 right-0 p-6 text-center z-10 pointer-events-none">
+              <p className="text-base font-medium text-foreground whitespace-pre-wrap">{page.coverTextBottom}</p>
+            </div>
+          )}
+        </div>
       </div>
     );
   };

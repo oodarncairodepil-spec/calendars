@@ -1,8 +1,9 @@
-import { useRef, useState, useCallback } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import { useAppStore } from "@/store/useAppStore";
 import { CalendarProject, MONTH_NAMES, DAY_NAMES_SHORT, FONT_PRESETS } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { getHolidaysForMonth, HolidayMap } from "@/lib/holidays-service";
 
 // Helper function to get days in a month
 const getDaysInMonth = (month: number, year: number = 2025): number => {
@@ -45,10 +46,15 @@ interface EditorCanvasProps {
 
 export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const canvasRef = useRef<HTMLDivElement>(null);
   const { getAssetById, selectedFrameType, setSelectedFrame, updatePageLayout, imageFit } = useAppStore();
+  const [holidaysMap, setHolidaysMap] = useState<{ [month: number]: HolidayMap }>({});
 
   const page = project.months[pageIndex];
   if (!page) return null;
+  
+  // Year for holidays (default to 2026)
+  const currentYear = 2026;
   
   // Get font family from presets
   const selectedFont = FONT_PRESETS.find(f => f.name === (project.fontFamily || 'Inter')) || FONT_PRESETS[0];
@@ -57,6 +63,16 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
   const assignedImage = page.assignedImageId ? getAssetById(page.assignedImageId) : null;
   const { imageFrame, calendarGridFrame } = page.layout;
   const transform = page.imageTransform;
+  
+  // Get margins, default to 10mm if not set
+  const margins = page.margins || { top: 10, right: 10, bottom: 10, left: 10 };
+  
+  // Convert margins to percentage based on page size
+  // Assuming margins are in mm (same unit as format)
+  const marginTopPercent = (margins.top / project.format.height) * 100;
+  const marginRightPercent = (margins.right / project.format.width) * 100;
+  const marginBottomPercent = (margins.bottom / project.format.height) * 100;
+  const marginLeftPercent = (margins.left / project.format.width) * 100;
 
   // Calculate aspect ratio for the page
   const aspectRatio = project.orientation === "portrait"
@@ -90,13 +106,39 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
     return months;
   };
 
-  return (
-    <div ref={containerRef} className="w-full h-full flex items-center justify-center p-4">
-      <motion.div
-        initial={{ opacity: 0, scale: 0.95 }}
-        animate={{ opacity: 1, scale: 1 }}
-        className="relative bg-card shadow-page rounded-sm overflow-hidden"
-        style={{
+  // Load holidays for displayed months
+  useEffect(() => {
+    if (page.month === "cover") return;
+    
+    const loadHolidays = async () => {
+      const months = getMonthsToDisplay();
+      // #region agent log
+      fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:114',message:'loadHolidays started',data:{months,currentYear,pageMonth:page.month},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
+      for (const monthNum of months) {
+        if (!holidaysMap[monthNum]) {
+          const holidays = await getHolidaysForMonth(currentYear, monthNum);
+          // #region agent log
+          fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:119',message:'holidays loaded for month',data:{monthNum,holidaysCount:Object.keys(holidays).length,holidaysKeys:Object.keys(holidays).slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+          // #endregion
+          setHolidaysMap(prev => ({ ...prev, [monthNum]: holidays }));
+        }
+      }
+    };
+    
+    loadHolidays();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page.month, project.monthsPerPage]);
+
+      return (
+        <div ref={containerRef} className="w-full h-full flex items-center justify-center p-4">
+          <motion.div
+            ref={canvasRef}
+            data-page-index={pageIndex}
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="relative bg-card shadow-page rounded-sm overflow-hidden"
+            style={{
           aspectRatio: `${project.orientation === "portrait" ? project.format.width : project.format.height} / ${project.orientation === "portrait" ? project.format.height : project.format.width}`,
           maxHeight: "100%",
           maxWidth: "100%",
@@ -105,27 +147,37 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
           fontFamily: fontFamily,
         }}
       >
-        {/* Cover Page Top Text */}
-        {page.month === "cover" && page.coverTextTop && (
-          <div className="absolute top-0 left-0 right-0 p-4 text-center z-10 pointer-events-none">
-            <p className="text-sm font-medium text-foreground whitespace-pre-wrap">{page.coverTextTop}</p>
-          </div>
-        )}
-
-        {/* Image Frame */}
+        {/* Content area with margins */}
         <div
-          onClick={() => setSelectedFrame("image")}
-          className={cn(
-            "absolute overflow-hidden cursor-pointer transition-all",
-            selectedFrameType === "image" ? "ring-2 ring-primary ring-offset-2" : "hover:ring-1 hover:ring-primary/50"
-          )}
+          className="absolute"
           style={{
-            left: `${imageFrame.x * 100}%`,
-            top: `${imageFrame.y * 100}%`,
-            width: `${imageFrame.w * 100}%`,
-            height: `${imageFrame.h * 100}%`,
+            top: `${marginTopPercent}%`,
+            right: `${marginRightPercent}%`,
+            bottom: `${marginBottomPercent}%`,
+            left: `${marginLeftPercent}%`,
           }}
         >
+          {/* Cover Page Top Text */}
+          {page.month === "cover" && page.coverTextTop && (
+            <div className="absolute top-0 left-0 right-0 p-4 text-center z-10 pointer-events-none">
+              <p className="text-sm font-medium text-foreground whitespace-pre-wrap">{page.coverTextTop}</p>
+            </div>
+          )}
+
+          {/* Image Frame */}
+          <div
+            onClick={() => setSelectedFrame("image")}
+            className={cn(
+              "absolute overflow-hidden cursor-pointer transition-all",
+              selectedFrameType === "image" ? "ring-2 ring-primary ring-offset-2" : "hover:ring-1 hover:ring-primary/50"
+            )}
+            style={{
+              left: `${imageFrame.x * 100}%`,
+              top: `${imageFrame.y * 100}%`,
+              width: `${imageFrame.w * 100}%`,
+              height: `${imageFrame.h * 100}%`,
+            }}
+          >
           {assignedImage ? (
             <div className="w-full h-full bg-muted overflow-hidden">
               <img
@@ -146,27 +198,27 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
           )}
         </div>
 
-        {/* Calendar Grid Frame */}
-        {page.showGrid && (
-          <div
-            onClick={() => setSelectedFrame("grid")}
-            className={cn(
-              "absolute overflow-hidden cursor-pointer transition-all",
-              selectedFrameType === "grid" ? "ring-2 ring-primary ring-offset-2" : "hover:ring-1 hover:ring-primary/50"
-            )}
-            style={{
-              left: `${calendarGridFrame.x * 100}%`,
-              top: `${calendarGridFrame.y * 100}%`,
-              width: `${calendarGridFrame.w * 100}%`,
-              height: `${calendarGridFrame.h * 100}%`,
-            }}
-          >
+          {/* Calendar Grid Frame */}
+          {page.showGrid && (
+            <div
+              onClick={() => setSelectedFrame("grid")}
+              className={cn(
+                "absolute overflow-visible cursor-pointer transition-all",
+                selectedFrameType === "grid" ? "ring-2 ring-primary ring-offset-2" : "hover:ring-1 hover:ring-primary/50"
+              )}
+              style={{
+                left: `${calendarGridFrame.x * 100}%`,
+                top: `${calendarGridFrame.y * 100}%`,
+                width: `${calendarGridFrame.w * 100}%`,
+                height: `${calendarGridFrame.h * 100}%`,
+              }}
+            >
             {page.month === "cover" ? (
-              <div className="w-full h-full bg-card p-2">
+              <div className="w-full h-full bg-card p-1">
                 <div className="text-center mb-1">
-                  <span className="font-display font-semibold text-sm">{getMonthName()}</span>
+                  <span className="font-display font-bold text-base">{getMonthName()}</span>
                 </div>
-                <div className="grid grid-cols-7 gap-px text-[6px] text-center">
+                <div className="grid grid-cols-7 gap-1 text-xs text-center">
                   {DAY_NAMES_SHORT.map((d, i) => (
                     <div key={i} className={cn(
                       "font-medium",
@@ -180,6 +232,7 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                     const isSunday = dayOfWeek === 0;
                     return (
                       <div key={i} className={cn(
+                        "py-0.5",
                         isSunday ? "text-red-500" : "text-muted-foreground/50"
                       )}>{i < 31 ? i + 1 : ""}</div>
                     );
@@ -188,24 +241,34 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
               </div>
             ) : (
               <div className={cn(
-                "w-full h-full bg-card p-2",
+                "w-full h-full bg-card p-1",
                 project.monthsPerPage === 2 ? "flex gap-2" : ""
               )}>
                 {getMonthsToDisplay().map((monthNum, idx) => {
-                  const days = generateCalendarDays(monthNum);
+                  const days = generateCalendarDays(monthNum, currentYear);
                   const monthName = MONTH_NAMES[monthNum - 1];
-                  const firstDay = getFirstDayOfMonth(monthNum);
+                  const firstDay = getFirstDayOfMonth(monthNum, currentYear);
+                  const monthHolidays = holidaysMap[monthNum] || {};
+                  
+                  // Get list of holidays for this month (deduplicate by date)
+                  const monthHolidaysList = Object.values(monthHolidays).flat();
+                  // Sort by date
+                  monthHolidaysList.sort((a, b) => new Date(a.date).getDate() - new Date(b.date).getDate());
+                  
+                  // #region agent log
+                  fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:250',message:'rendering month with holidays',data:{monthNum,monthHolidaysCount:monthHolidaysList.length,monthHolidaysKeys:Object.keys(monthHolidays).slice(0,5),holidayDates:monthHolidaysList.map(h=>new Date(h.date).getDate())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+                  // #endregion
                   
                   return (
                     <div key={monthNum} className={cn(
                       "flex-1",
-                      project.monthsPerPage === 2 && idx === 0 ? "border-r border-border pr-1" : "",
-                      project.monthsPerPage === 2 && idx === 1 ? "pl-1" : ""
+                      project.monthsPerPage === 2 && idx === 0 ? "border-r border-border pr-2" : "",
+                      project.monthsPerPage === 2 && idx === 1 ? "pl-2" : ""
                     )}>
                       <div className="text-center mb-1">
-                        <span className="font-display font-semibold text-sm">{monthName}</span>
+                        <span className="font-display font-bold text-base">{monthName}</span>
                       </div>
-                      <div className="grid grid-cols-7 gap-px text-[6px] text-center">
+                      <div className="grid grid-cols-7 gap-1 text-xs text-center">
                         {DAY_NAMES_SHORT.map((d, i) => (
                           <div key={i} className={cn(
                             "font-medium",
@@ -218,16 +281,47 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                           // For each day, calculate: (firstDay + day - 1) % 7
                           const dayOfWeek = day !== null ? (firstDay + day - 1) % 7 : -1;
                           const isSunday = dayOfWeek === 0;
+                          
+                          // Check if this date is a holiday
+                          const dateKey = day !== null ? `${currentYear}-${String(monthNum).padStart(2, '0')}-${String(day).padStart(2, '0')}` : null;
+                          const isHoliday = dateKey && monthHolidays[dateKey] && monthHolidays[dateKey].length > 0;
+                          
                           return (
                             <div key={i} className={cn(
+                              "py-0.5",
                               day === null && "opacity-0",
-                              day !== null && isSunday ? "text-red-500" : "text-muted-foreground/50"
+                              day !== null && isHoliday ? "text-red-500 font-semibold" : day !== null && isSunday ? "text-red-500" : "text-muted-foreground/50"
                             )}>
                               {day}
                             </div>
                           );
                         })}
                       </div>
+                      {/* Holidays info below calendar */}
+                      {(() => {
+                        // #region agent log
+                        fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:292',message:'checking holidays render condition',data:{monthHolidaysListLength:monthHolidaysList.length,shouldRender:monthHolidaysList.length > 0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+                        // #endregion
+                        return monthHolidaysList.length > 0 ? (
+                          <div className="mt-1 pt-1 border-t border-border/50 overflow-visible">
+                            <div className="text-[10px] leading-tight space-y-0.5 text-left">
+                              {monthHolidaysList.map((holiday, hIdx) => {
+                                const date = new Date(holiday.date);
+                                const day = date.getDate();
+                                const monthName = MONTH_NAMES[monthNum - 1];
+                                // #region agent log
+                                fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:300',message:'rendering holiday item',data:{hIdx,day,monthName,holidayName:holiday.name,holidayEmoji:holiday.emoji},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+                                // #endregion
+                                return (
+                                  <div key={hIdx} className="text-foreground/80">
+                                    <span className="text-red-500 font-semibold">{day} {monthName}:</span> {holiday.name} {holiday.emoji && <span>{holiday.emoji}</span>}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        ) : null;
+                      })()}
                     </div>
                   );
                 })}
@@ -236,12 +330,13 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
           </div>
         )}
 
-        {/* Cover Page Bottom Text */}
-        {page.month === "cover" && page.coverTextBottom && (
-          <div className="absolute bottom-0 left-0 right-0 p-4 text-center z-10 pointer-events-none">
-            <p className="text-sm font-medium text-foreground whitespace-pre-wrap">{page.coverTextBottom}</p>
-          </div>
-        )}
+          {/* Cover Page Bottom Text */}
+          {page.month === "cover" && page.coverTextBottom && (
+            <div className="absolute bottom-0 left-0 right-0 p-4 text-center z-10 pointer-events-none">
+              <p className="text-sm font-medium text-foreground whitespace-pre-wrap">{page.coverTextBottom}</p>
+            </div>
+          )}
+        </div>
       </motion.div>
     </div>
   );

@@ -60,6 +60,7 @@ interface AppState {
   assignImageToPage: (pageIndex: number, imageId: string | null) => void;
   toggleGrid: (pageIndex: number) => void;
   updateCoverText: (pageIndex: number, textType: 'top' | 'bottom', text: string) => void;
+  updatePageMargins: (pageIndex: number, margins: { top: number; right: number; bottom: number; left: number }, applyToAllMonths?: boolean) => void;
   
   // Asset actions
   addAsset: (asset: Omit<ImageAsset, 'id' | 'createdAt' | 'groupIds' | 'tags'>, id?: string) => string;
@@ -95,6 +96,9 @@ interface AppState {
   seedSampleData: () => void;
 }
 
+const DEFAULT_COVER_MARGINS = { top: 10, right: 10, bottom: 10, left: 10 };
+const DEFAULT_MONTH_MARGINS = { top: 10, right: 10, bottom: 10, left: 10 };
+
 const createDefaultMonthPages = (monthsPerPage: 1 | 2 = 2): MonthPage[] => {
   const pages: MonthPage[] = [];
   
@@ -109,6 +113,7 @@ const createDefaultMonthPages = (monthsPerPage: 1 | 2 = 2): MonthPage[] => {
     imageTransform: DEFAULT_IMAGE_TRANSFORM,
     showGrid: false,
     gridStyle: DEFAULT_GRID_STYLE,
+    margins: { ...DEFAULT_COVER_MARGINS },
   });
   
   if (monthsPerPage === 1) {
@@ -124,6 +129,7 @@ const createDefaultMonthPages = (monthsPerPage: 1 | 2 = 2): MonthPage[] => {
         imageTransform: DEFAULT_IMAGE_TRANSFORM,
         showGrid: true,
         gridStyle: DEFAULT_GRID_STYLE,
+        margins: { ...DEFAULT_MONTH_MARGINS },
       });
     }
   } else {
@@ -139,6 +145,7 @@ const createDefaultMonthPages = (monthsPerPage: 1 | 2 = 2): MonthPage[] => {
         imageTransform: DEFAULT_IMAGE_TRANSFORM,
         showGrid: true,
         gridStyle: DEFAULT_GRID_STYLE,
+        margins: { ...DEFAULT_MONTH_MARGINS },
       });
     }
   }
@@ -397,6 +404,36 @@ export const useAppStore = create<AppState>()(
         ...page,
         [textType === 'top' ? 'coverTextTop' : 'coverTextBottom']: text,
       };
+      
+      get().updateProject(project.id, { months: updatedMonths });
+    },
+    
+    updatePageMargins: (pageIndex, margins, applyToAllMonths = false) => {
+      const project = get().getActiveProject();
+      if (!project) return;
+      
+      const page = project.months[pageIndex];
+      if (!page) return;
+      
+      const updatedMonths = [...project.months];
+      
+      if (applyToAllMonths && page.month !== 'cover') {
+        // Apply margins to all month pages (not cover)
+        updatedMonths.forEach((p, idx) => {
+          if (p.month !== 'cover') {
+            updatedMonths[idx] = {
+              ...p,
+              margins: { ...margins },
+            };
+          }
+        });
+      } else {
+        // Apply margins only to current page
+        updatedMonths[pageIndex] = {
+          ...page,
+          margins: { ...margins },
+        };
+      }
       
       get().updateProject(project.id, { months: updatedMonths });
     },

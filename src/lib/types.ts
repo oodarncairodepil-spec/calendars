@@ -28,6 +28,13 @@ export interface GridStyle {
   showWeekNumbers?: boolean;
 }
 
+export interface PageMargins {
+  top: number;
+  right: number;
+  bottom: number;
+  left: number;
+}
+
 export interface MonthPage {
   month: number | 'cover'; // 1-12 or 'cover'
   layout: {
@@ -40,6 +47,7 @@ export interface MonthPage {
   gridStyle: GridStyle;
   coverTextTop?: string; // Text for top section of cover page
   coverTextBottom?: string; // Text for bottom section of cover page
+  margins?: PageMargins; // Page margins (top, right, bottom, left)
 }
 
 export interface CalendarFormat {
