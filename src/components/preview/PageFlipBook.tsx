@@ -207,7 +207,7 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
             ) : (
               <div className={cn(
                 "w-full h-full p-1",
-                project.monthsPerPage === 2 ? "flex gap-4" : ""
+                project.monthsPerPage === 2 ? "flex gap-2" : ""
               )}>
                 {(() => {
                   const currentMonth = page.month as number;
