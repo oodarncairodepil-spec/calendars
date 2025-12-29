@@ -5,6 +5,15 @@
 
 import { logFontDebug, getLoadedFonts } from './font-debug';
 
+// Helper to get environment (duplicated to avoid circular dependency)
+const getEnvironment = (): string => {
+  if (typeof window === 'undefined') return 'unknown';
+  const hostname = window.location.hostname;
+  if (hostname.includes('vercel.app')) return 'vercel';
+  if (hostname === 'localhost' || hostname === '127.0.0.1') return 'localhost';
+  return 'unknown';
+};
+
 /**
  * Wait for fonts to be loaded using the Font Loading API
  * Has a fallback timeout to prevent blocking indefinitely

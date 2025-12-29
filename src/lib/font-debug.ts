@@ -96,51 +96,69 @@ export const logFontDebug = (
 
 /**
  * Check if a specific font is loaded
+ * Note: document.fonts.check() may return true for system fonts too,
+ * so we also check if the font is in the actual loaded fonts list
  */
 export const checkFontLoaded = (fontFamily: string): {
   loaded: boolean;
   fontName: string;
   checks: { withQuotes: boolean; withoutQuotes: boolean };
+  inLoadedList: boolean;
+  isSystemFont: boolean;
 } => {
   if (typeof document === 'undefined' || !document.fonts) {
     return {
       loaded: false,
       fontName: 'unknown',
       checks: { withQuotes: false, withoutQuotes: false },
+      inLoadedList: false,
+      isSystemFont: false,
     };
   }
 
   const fontName = fontFamily.split(',')[0].trim().replace(/['"]/g, '');
   const withQuotes = document.fonts.check(`12px "${fontName}"`);
   const withoutQuotes = document.fonts.check(`12px ${fontName}`);
+  
+  // Check if font is actually in the loaded fonts list
+  const loadedFonts = getLoadedFonts();
+  const inLoadedList = loadedFonts.some(f => f.toLowerCase() === fontName.toLowerCase());
+  
+  // If check returns true but not in loaded list, it's likely a system font
+  const isSystemFont = (withQuotes || withoutQuotes) && !inLoadedList;
 
   return {
     loaded: withQuotes || withoutQuotes,
     fontName,
     checks: { withQuotes, withoutQuotes },
+    inLoadedList,
+    isSystemFont,
   };
 };
 
 /**
  * Get all loaded fonts from document.fonts
+ * Returns unique font family names (deduplicated)
  */
 export const getLoadedFonts = (): string[] => {
   if (typeof document === 'undefined' || !document.fonts) {
     return [];
   }
 
-  const loadedFonts: string[] = [];
+  const loadedFonts: Set<string> = new Set();
   try {
     document.fonts.forEach((font) => {
       if (font.family) {
-        loadedFonts.push(font.family);
+        // Extract just the font family name (before comma)
+        const familyName = font.family.split(',')[0].trim().replace(/['"]/g, '');
+        loadedFonts.add(familyName);
       }
     });
   } catch (error) {
     // Font iterator might not be available in all browsers
   }
 
-  return loadedFonts;
+  return Array.from(loadedFonts).sort();
 };
 
 /**
