@@ -165,7 +165,7 @@ export const FONT_PRESETS: FontPreset[] = [
   { name: 'Dancing Script', family: '"Dancing Script", cursive', displayName: 'Dancing Script' },
   { name: 'Pacifico', family: 'Pacifico, cursive', displayName: 'Pacifico' },
   { name: 'Caveat', family: 'Caveat, cursive', displayName: 'Caveat' },
-  { name: 'Comfortaa', family: 'Comfortaa, cursive', displayName: 'Comfortaa' },
+  { name: 'Comfortaa', family: '"Comfortaa", cursive', displayName: 'Comfortaa' },
   { name: 'Lovely Coffee', family: '"Lovely Coffee", cursive', displayName: 'Lovely Coffee' },
   { name: 'Cadillac', family: '"Cadillac", serif', displayName: 'Cadillac' },
   { name: 'Milkshake', family: '"Milkshake", cursive', displayName: 'Milkshake' },
