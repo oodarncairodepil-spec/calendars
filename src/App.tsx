@@ -11,6 +11,7 @@ import Library from "./pages/Library";
 import Settings from "./pages/Settings";
 import Holidays from "./pages/Holidays";
 import NotFound from "./pages/NotFound";
+import { logFontDebug, getLoadedFonts } from "./lib/font-debug";
 
 const queryClient = new QueryClient();
 
@@ -18,6 +19,14 @@ const AppContent = () => {
   const loadState = useAppStore((s) => s.loadState);
 
   useEffect(() => {
+    // #region agent log
+    logFontDebug('App.tsx:AppContent', 'AppContent mounted, checking fonts', {
+      loadedFonts: getLoadedFonts(),
+      hasDocumentFonts: typeof document !== 'undefined' && !!document.fonts,
+      documentFontsStatus: typeof document !== 'undefined' && document.fonts ? document.fonts.status : 'unknown',
+    }, 'E');
+    // #endregion
+
     loadState().catch((error) => {
       console.error('Failed to load state:', error);
     });

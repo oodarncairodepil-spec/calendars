@@ -5,6 +5,7 @@ import { CalendarProject, MONTH_NAMES, MONTH_NAMES_SHORT, DAY_NAMES_SHORT, FONT_
 import { cn } from "@/lib/utils";
 import { getHolidaysForMonth, HolidayMap } from "@/lib/holidays-service";
 import { useFontsLoaded } from "@/lib/font-loader";
+import { logFontDebug, checkFontLoaded, getLoadedFonts } from "@/lib/font-debug";
 
 // Helper function to get days in a month
 const getDaysInMonth = (month: number, year: number = 2025): number => {
@@ -62,6 +63,25 @@ export const EditorCanvas = ({ project, pageIndex, hideEditorBorders = false }: 
   // Get font family from presets - ensure exact match with Google Fonts
   const selectedFont = FONT_PRESETS.find(f => f.name === (project.fontFamily || 'Inter')) || FONT_PRESETS[0];
   const fontFamily = selectedFont.family;
+  
+  // #region agent log
+  useEffect(() => {
+    logFontDebug('EditorCanvas.tsx:fontFamily', 'Font family selected', {
+      fontName: selectedFont.name,
+      fontFamily: fontFamily,
+      projectFontFamily: project.fontFamily,
+      fontsLoadedState: fontsLoaded,
+    }, 'B');
+    
+    // Check if font is actually loaded
+    const fontCheck = checkFontLoaded(fontFamily);
+    logFontDebug('EditorCanvas.tsx:fontCheck', 'Font loaded check result', {
+      fontFamily: fontFamily,
+      ...fontCheck,
+      allLoadedFonts: getLoadedFonts(),
+    }, 'B');
+  }, [fontFamily, selectedFont.name, project.fontFamily, fontsLoaded]);
+  // #endregion
 
   const assignedImage = page.assignedImageId ? getAssetById(page.assignedImageId) : null;
   const { imageFrame, calendarGridFrame } = page.layout;

@@ -23,6 +23,27 @@
     <!-- Note: Custom fonts (Lovely Coffee, Cadillac, Freebooter Script) -->
     <!-- Milkshake is available on Google Fonts and has been added to the link above -->
     <!-- Freebooter Script may need to be added via @font-face with font files from DaFont -->
+    <script>
+      // Log Google Fonts link loading
+      (function() {
+        const link = document.querySelector('link[href*="fonts.googleapis.com"]');
+        if (link) {
+          link.addEventListener('load', function() {
+            console.log('[Font Debug] Google Fonts CSS loaded', {
+              href: link.href,
+              environment: window.location.hostname.includes('vercel.app') ? 'vercel' : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'localhost' : 'unknown'),
+              hostname: window.location.hostname,
+            });
+          });
+          link.addEventListener('error', function() {
+            console.error('[Font Debug] Google Fonts CSS failed to load', {
+              href: link.href,
+              environment: window.location.hostname.includes('vercel.app') ? 'vercel' : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'localhost' : 'unknown'),
+            });
+          });
+        }
+      })();
+    </script>
   </head>
 
   <body>

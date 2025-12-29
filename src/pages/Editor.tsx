@@ -40,6 +40,7 @@ import { Progress } from "@/components/ui/progress";
 import { uploadImageToStorage } from "@/lib/storage-upload";
 import { v4 as uuidv4 } from "uuid";
 import { FileText, X } from "lucide-react";
+import { logFontDebug, checkFontLoaded } from "@/lib/font-debug";
 
 const Editor = () => {
   const { projectId } = useParams();
@@ -869,6 +870,16 @@ const PropertiesPanel = () => {
             <Select
               value={project.fontFamily || 'Inter'}
               onValueChange={(value) => {
+                // #region agent log
+                const selectedFont = FONT_PRESETS.find(f => f.name === value) || FONT_PRESETS[0];
+                const fontCheck = checkFontLoaded(selectedFont.family);
+                logFontDebug('Editor.tsx:fontChange', 'Font family changed', {
+                  oldFont: project.fontFamily || 'Inter',
+                  newFont: value,
+                  fontFamily: selectedFont.family,
+                  fontCheck,
+                }, 'C');
+                // #endregion
                 updateProject(project.id, { fontFamily: value });
               }}
             >
