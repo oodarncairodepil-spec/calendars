@@ -1,5 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap');
 
+/* Custom Fonts - These fonts may need to be hosted or loaded from external sources */
+/* If these fonts are not available, you may need to add @font-face declarations with font files */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
