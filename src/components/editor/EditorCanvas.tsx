@@ -165,7 +165,7 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
           {/* Cover Page Top Text */}
           {page.month === "cover" && page.coverTextTop && (
             <div className="absolute top-0 left-0 right-0 p-4 text-center z-10 pointer-events-none">
-              <p className="text-sm font-medium text-foreground whitespace-pre-wrap">{page.coverTextTop}</p>
+              <p className="text-sm font-medium text-foreground whitespace-pre-wrap" style={{ fontFamily: fontFamily }}>{page.coverTextTop}</p>
             </div>
           )}
 
@@ -228,7 +228,7 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                     <div key={i} className={cn(
                       "font-medium",
                       i === 0 ? "text-red-500" : "text-muted-foreground" // Minggu (index 0) is red
-                    )}>{d}</div>
+                    )} style={{ fontFamily: fontFamily }}>{d}</div>
                   ))}
                   {Array.from({ length: 35 }, (_, i) => {
                     // For cover page, show sample calendar
@@ -239,7 +239,7 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                       <div key={i} className={cn(
                         "py-0.5",
                         isSunday ? "text-red-500" : "text-muted-foreground/50"
-                      )}>{i < 31 ? i + 1 : ""}</div>
+                      )} style={{ fontFamily: fontFamily }}>{i < 31 ? i + 1 : ""}</div>
                     );
                   })}
                 </div>
@@ -297,7 +297,7 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                           <div key={i} className={cn(
                             "font-medium",
                             i === 0 ? "text-red-500" : "text-muted-foreground" // Minggu (index 0) is red
-                          )}>{d}</div>
+                          )} style={{ fontFamily: fontFamily }}>{d}</div>
                         ))}
                         {days.map((day, i) => {
                           // Calculate the actual day of week (0 = Sunday, 6 = Saturday)
@@ -315,7 +315,7 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                               "py-0.5",
                               day === null && "opacity-0",
                               day !== null && isHoliday ? "text-red-500 font-semibold" : day !== null && isSunday ? "text-red-500" : "text-muted-foreground/50"
-                            )}>
+                            )} style={{ fontFamily: fontFamily }}>
                               {day}
                             </div>
                           );
@@ -328,7 +328,7 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                         // #endregion
                         return groupedHolidays.length > 0 ? (
                           <div className="mt-1 pt-1 border-t border-border/50 overflow-visible">
-                            <div className="text-[10px] leading-tight space-y-0.5 text-left">
+                            <div className="text-[10px] leading-tight space-y-0.5 text-left" style={{ fontFamily: fontFamily }}>
                               {groupedHolidays.map((group, hIdx) => {
                                 const monthNameShort = MONTH_NAMES_SHORT[monthNum - 1];
                                 // Format dates: if consecutive, show range (e.g., "16-17"), otherwise show single date
@@ -371,7 +371,7 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
           {/* Cover Page Bottom Text */}
           {page.month === "cover" && page.coverTextBottom && (
             <div className="absolute bottom-0 left-0 right-0 p-4 text-center z-10 pointer-events-none">
-              <p className="text-sm font-medium text-foreground whitespace-pre-wrap">{page.coverTextBottom}</p>
+              <p className="text-sm font-medium text-foreground whitespace-pre-wrap" style={{ fontFamily: fontFamily }}>{page.coverTextBottom}</p>
             </div>
           )}
         </div>
