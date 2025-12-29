@@ -416,12 +416,13 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
       </Button>
 
       {/* Book Container */}
-      <div className="perspective-2000 w-full max-w-2xl px-8">
+      <div className="perspective-2000 w-full px-8" style={{ maxWidth: "min(900px, 90vw)" }}>
         <div
           className="relative mx-auto shadow-heavy rounded-sm overflow-hidden"
           style={{
             aspectRatio: `${project.orientation === "portrait" ? project.format.width : project.format.height} / ${project.orientation === "portrait" ? project.format.height : project.format.width}`,
-            maxHeight: "80vh",
+            maxHeight: "min(85vh, 900px)",
+            maxWidth: "100%",
           }}
         >
           {/* Current Page */}
