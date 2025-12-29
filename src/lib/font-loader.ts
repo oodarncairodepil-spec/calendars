@@ -68,19 +68,8 @@ export const useFontsLoaded = (): boolean => {
   const [fontsLoaded, setFontsLoaded] = useState(false);
 
   useEffect(() => {
-    // Check if fonts are already loaded
-    if (typeof document !== 'undefined' && document.fonts && document.fonts.status === 'loaded') {
-      setFontsLoaded(true);
-      return;
-    }
-
     waitForFonts().then(() => {
       setFontsLoaded(true);
-      // Force a re-render by triggering a state update
-      // This ensures components that use fonts re-render when fonts are ready
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new Event('fontsloaded'));
-      }
     });
   }, []);
 

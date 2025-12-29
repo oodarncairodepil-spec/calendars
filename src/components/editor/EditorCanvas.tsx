@@ -341,7 +341,7 @@ export const EditorCanvas = ({ project, pageIndex, hideEditorBorders = false }: 
                                   }
                                 }
                                 return (
-                                  <div key={hIdx} className="text-foreground/80" style={{ fontFamily: fontFamily }}>
+                                  <div key={hIdx} className="text-foreground/80">
                                     <span className="text-red-500 font-semibold">{dateStr}:</span> {group.name}
                                   </div>
                                 );
