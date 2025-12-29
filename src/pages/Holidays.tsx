@@ -183,8 +183,13 @@ const Holidays = () => {
     return `${day} ${month}`;
   };
 
-  const nationalHolidays = holidays.filter(h => h.type === 'national');
-  const jointLeave = holidays.filter(h => h.type === 'joint_leave');
+  const getTypeLabel = (type: 'national' | 'joint_leave') => {
+    return type === 'national' ? 'Hari Libur Nasional' : 'Cuti Bersama';
+  };
+
+  const getTypeBadgeVariant = (type: 'national' | 'joint_leave') => {
+    return type === 'national' ? 'default' : 'secondary';
+  };
 
   return (
     <Layout>
@@ -217,140 +222,75 @@ const Holidays = () => {
             <p className="text-muted-foreground">Loading holidays...</p>
           </div>
         ) : (
-          <div className="space-y-8">
-            {/* National Holidays */}
-            <div>
-              <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5" />
-                Hari Libur Nasional ({nationalHolidays.length})
-              </h2>
-              <div className="bg-card rounded-lg border">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-4 font-medium">Tanggal</th>
-                        <th className="text-left p-4 font-medium">Hari</th>
-                        <th className="text-left p-4 font-medium">Keterangan</th>
-                        <th className="text-right p-4 font-medium">Actions</th>
+          <div>
+            <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
+              <CalendarIcon className="w-5 h-5" />
+              Holidays ({holidays.length})
+            </h2>
+            <div className="bg-card rounded-lg border">
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead>
+                    <tr className="border-b">
+                      <th className="text-left p-4 font-medium">Tanggal</th>
+                      <th className="text-left p-4 font-medium">Hari</th>
+                      <th className="text-left p-4 font-medium">Tipe</th>
+                      <th className="text-left p-4 font-medium">Keterangan</th>
+                      <th className="text-right p-4 font-medium">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {holidays.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="p-8 text-center text-muted-foreground">
+                          No holidays found for {yearFilter}
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {nationalHolidays.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="p-8 text-center text-muted-foreground">
-                            No national holidays found for {yearFilter}
-                          </td>
-                        </tr>
-                      ) : (
-                        nationalHolidays.map((holiday) => {
-                          const date = new Date(holiday.date);
-                          const dayName = DAY_NAMES[date.getDay()];
-                          return (
-                            <tr key={holiday.id} className="border-b hover:bg-muted/50">
-                              <td className="p-4">
-                                {formatDateForTable(date)}
-                              </td>
-                              <td className="p-4">{dayName}</td>
-                              <td className="p-4">
-                                <div className="flex items-center gap-2">
-                                  {holiday.emoji && <span>{holiday.emoji}</span>}
-                                  <span>{holiday.name}</span>
-                                </div>
-                              </td>
-                              <td className="p-4">
-                                <div className="flex items-center justify-end gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleOpenDialog(holiday)}
-                                  >
-                                    <Edit2 className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDelete(holiday.id)}
-                                  >
-                                    <Trash2 className="w-4 h-4 text-destructive" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
-
-            {/* Joint Leave */}
-            <div>
-              <h2 className="text-2xl font-semibold mb-4 flex items-center gap-2">
-                <CalendarIcon className="w-5 h-5" />
-                Cuti Bersama ({jointLeave.length})
-              </h2>
-              <div className="bg-card rounded-lg border">
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b">
-                        <th className="text-left p-4 font-medium">Tanggal</th>
-                        <th className="text-left p-4 font-medium">Hari</th>
-                        <th className="text-left p-4 font-medium">Keterangan</th>
-                        <th className="text-right p-4 font-medium">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {jointLeave.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="p-8 text-center text-muted-foreground">
-                            No joint leave days found for {yearFilter}
-                          </td>
-                        </tr>
-                      ) : (
-                        jointLeave.map((holiday) => {
-                          const date = new Date(holiday.date);
-                          const dayName = DAY_NAMES[date.getDay()];
-                          return (
-                            <tr key={holiday.id} className="border-b hover:bg-muted/50">
-                              <td className="p-4">
-                                {formatDateForTable(date)}
-                              </td>
-                              <td className="p-4">{dayName}</td>
-                              <td className="p-4">
-                                <div className="flex items-center gap-2">
-                                  {holiday.emoji && <span>{holiday.emoji}</span>}
-                                  <span>{holiday.name}</span>
-                                </div>
-                              </td>
-                              <td className="p-4">
-                                <div className="flex items-center justify-end gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleOpenDialog(holiday)}
-                                  >
-                                    <Edit2 className="w-4 h-4" />
-                                  </Button>
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => handleDelete(holiday.id)}
-                                  >
-                                    <Trash2 className="w-4 h-4 text-destructive" />
-                                  </Button>
-                                </div>
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                    ) : (
+                      holidays.map((holiday) => {
+                        const date = new Date(holiday.date);
+                        const dayName = DAY_NAMES[date.getDay()];
+                        return (
+                          <tr key={holiday.id} className="border-b hover:bg-muted/50">
+                            <td className="p-4">
+                              {formatDateForTable(date)}
+                            </td>
+                            <td className="p-4">{dayName}</td>
+                            <td className="p-4">
+                              <Badge variant={getTypeBadgeVariant(holiday.type)}>
+                                {getTypeLabel(holiday.type)}
+                              </Badge>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center gap-2">
+                                {holiday.emoji && <span>{holiday.emoji}</span>}
+                                <span>{holiday.name}</span>
+                              </div>
+                            </td>
+                            <td className="p-4">
+                              <div className="flex items-center justify-end gap-2">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleOpenDialog(holiday)}
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleDelete(holiday.id)}
+                                >
+                                  <Trash2 className="w-4 h-4 text-destructive" />
+                                </Button>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>

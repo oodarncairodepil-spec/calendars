@@ -370,8 +370,10 @@ const Editor = () => {
             </div>
 
             {/* Canvas Area */}
-            <div className="flex-1 overflow-hidden p-4 bg-canvas">
-              <EditorCanvas project={project} pageIndex={activePageIndex} />
+            <div className="flex-1 overflow-hidden p-6 bg-canvas flex items-center justify-center">
+              <div className="w-full h-full max-w-5xl max-h-[calc(100vh-10rem)] flex items-center justify-center">
+                <EditorCanvas project={project} pageIndex={activePageIndex} />
+              </div>
             </div>
           </div>
 

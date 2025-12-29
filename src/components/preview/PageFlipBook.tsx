@@ -174,7 +174,7 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
             {page.month === "cover" ? (
               <div className="w-full h-full p-1">
                 <div className="text-center mb-1">
-                  <span className="font-display font-bold text-base">{getMonthName()}</span>
+                  <span className="font-bold text-base" style={{ fontFamily: fontFamily }}>{getMonthName()}</span>
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-xs text-center">
                   {DAY_NAMES_SHORT.map((d, i) => (
@@ -270,7 +270,7 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                       project.monthsPerPage === 2 && monthNum === currentMonth + 1 ? "pl-2" : ""
                     )}>
                       <div className="text-center mb-1">
-                        <span className="font-display font-bold text-base">{monthName}</span>
+                        <span className="font-bold text-base" style={{ fontFamily: fontFamily }}>{monthName}</span>
                       </div>
                       <div className="grid grid-cols-7 gap-1 text-xs text-center">
                         {DAY_NAMES_SHORT.map((d, i) => (

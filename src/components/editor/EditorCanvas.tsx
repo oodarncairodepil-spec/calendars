@@ -131,7 +131,7 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
   }, [page.month, project.monthsPerPage]);
 
       return (
-        <div ref={containerRef} className="w-full h-full flex items-center justify-center p-4">
+        <div ref={containerRef} className="w-full h-full flex items-center justify-center">
           <motion.div
             ref={canvasRef}
             data-page-index={pageIndex}
@@ -216,7 +216,7 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
             {page.month === "cover" ? (
               <div className="w-full h-full bg-card p-1">
                 <div className="text-center mb-1">
-                  <span className="font-display font-bold text-base">{getMonthName()}</span>
+                  <span className="font-bold text-base" style={{ fontFamily: fontFamily }}>{getMonthName()}</span>
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-xs text-center">
                   {DAY_NAMES_SHORT.map((d, i) => (
@@ -285,7 +285,7 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                       project.monthsPerPage === 2 && idx === 1 ? "pl-2" : ""
                     )}>
                       <div className="text-center mb-1">
-                        <span className="font-display font-bold text-base">{monthName}</span>
+                        <span className="font-bold text-base" style={{ fontFamily: fontFamily }}>{monthName}</span>
                       </div>
                       <div className="grid grid-cols-7 gap-1 text-xs text-center">
                         {DAY_NAMES_SHORT.map((d, i) => (
