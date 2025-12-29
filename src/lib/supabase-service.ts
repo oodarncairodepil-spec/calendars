@@ -22,6 +22,9 @@ interface DbProject {
   font_family?: string | null; // Font family for the calendar
   cover_image_fit?: string | null; // Image fit mode for cover page
   months_image_fit?: string | null; // Image fit mode for all month pages
+  signature_image_url?: string | null; // URL of signature image
+  signature_position?: { x: number; y: number } | null; // Position of signature (normalized 0-1)
+  signature_size?: { width: number; height: number } | null; // Size of signature (percentage of page)
   created_at: string;
   updated_at: string;
 }
@@ -61,6 +64,9 @@ const dbProjectToProject = (db: DbProject): CalendarProject => ({
   fontFamily: (db as any).font_family || 'Inter', // Default to Inter if not present
   coverImageFit: (db.cover_image_fit as 'cover' | 'contain' | 'stretch') || 'cover', // Default to cover if not present
   monthsImageFit: (db.months_image_fit as 'cover' | 'contain' | 'stretch') || 'cover', // Default to cover if not present
+  signatureImageUrl: db.signature_image_url || null,
+  signaturePosition: db.signature_position || undefined,
+  signatureSize: db.signature_size || undefined,
   createdAt: db.created_at,
   updatedAt: db.updated_at,
 });
@@ -79,6 +85,9 @@ const projectToDbProject = (project: CalendarProject): Omit<DbProject, 'id' | 'c
   font_family: project.fontFamily || 'Inter',
   cover_image_fit: project.coverImageFit || 'cover',
   months_image_fit: project.monthsImageFit || 'cover',
+  signature_image_url: project.signatureImageUrl || null,
+  signature_position: project.signaturePosition || null,
+  signature_size: project.signatureSize || null,
 });
 
 // Convert database asset to app asset

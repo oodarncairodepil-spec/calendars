@@ -60,6 +60,16 @@ export type CalendarType = 'wall' | 'desk';
 export type Orientation = 'portrait' | 'landscape';
 export type ImageFit = 'cover' | 'contain' | 'stretch';
 
+export interface SignaturePosition {
+  x: number; // Normalized 0-1 (0 = left, 1 = right)
+  y: number; // Normalized 0-1 (0 = top, 1 = bottom)
+}
+
+export interface SignatureSize {
+  width: number; // Percentage of page width (0-1)
+  height: number; // Percentage of page height (0-1)
+}
+
 export interface CalendarProject {
   id: string;
   title: string;
@@ -74,6 +84,9 @@ export interface CalendarProject {
   fontFamily?: string; // Font family for the calendar (e.g., 'Inter', 'Sora', 'Roboto', etc.)
   coverImageFit?: ImageFit; // Image fit mode for cover page
   monthsImageFit?: ImageFit; // Image fit mode for all month pages
+  signatureImageUrl?: string | null; // URL of signature image
+  signaturePosition?: SignaturePosition; // Position of signature (normalized 0-1)
+  signatureSize?: SignatureSize; // Size of signature (percentage of page)
   createdAt: string;
   updatedAt: string;
 }

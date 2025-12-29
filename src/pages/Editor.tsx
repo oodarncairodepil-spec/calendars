@@ -37,6 +37,9 @@ import { saveState } from "@/lib/storage";
 import jsPDF from "jspdf";
 import { toPng } from "html-to-image";
 import { Progress } from "@/components/ui/progress";
+import { uploadImageToStorage } from "@/lib/storage-upload";
+import { v4 as uuidv4 } from "uuid";
+import { FileText, X } from "lucide-react";
 
 const Editor = () => {
   const { projectId } = useParams();
@@ -64,6 +67,8 @@ const Editor = () => {
   const [newProjectOrientation, setNewProjectOrientation] = useState<"portrait" | "landscape">("portrait");
   const [isSaving, setIsSaving] = useState(false);
   const [saveProgress, setSaveProgress] = useState(0);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState(0);
 
   // Track previous projectId to detect actual changes
   const prevProjectIdRef = useRef<string | undefined>(projectId);
@@ -134,14 +139,12 @@ const Editor = () => {
   };
 
   const handleDownloadPDF = async () => {
-    if (!project) return;
+    if (!project || isGeneratingPDF) return;
+
+    setIsGeneratingPDF(true);
+    setPdfProgress(0);
 
     try {
-      toast({
-        title: "Generating PDF...",
-        description: "Please wait while we prepare your calendar.",
-      });
-
       // Get the format dimensions in mm
       const width = project.format.unit === "mm" 
         ? project.format.width 
@@ -159,9 +162,14 @@ const Editor = () => {
 
       // Store original page index to restore later
       const originalPageIndex = activePageIndex;
+      const totalPages = project.months.length;
 
       // Process each page
-      for (let i = 0; i < project.months.length; i++) {
+      for (let i = 0; i < totalPages; i++) {
+        // Update progress (0-90% based on pages processed)
+        const pageProgress = Math.floor((i / totalPages) * 90);
+        setPdfProgress(pageProgress);
+
         // Set active page to render it
         setActivePage(i);
 
@@ -207,6 +215,9 @@ const Editor = () => {
         }
       }
 
+      // Update progress to 95% (processing complete, preparing download)
+      setPdfProgress(95);
+
       // Restore original page index
       setActivePage(originalPageIndex);
 
@@ -220,17 +231,26 @@ const Editor = () => {
       // Save PDF
       pdf.save(filename);
 
+      // Complete progress
+      setPdfProgress(100);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+
       toast({
         title: "PDF Downloaded",
         description: `Your calendar has been saved as ${filename}`,
       });
     } catch (error) {
       console.error("Failed to generate PDF:", error);
+      setPdfProgress(0);
       toast({
         title: "Error",
         description: "Failed to generate PDF. Please try again.",
         variant: "destructive",
       });
+    } finally {
+      setIsGeneratingPDF(false);
+      // Reset progress after a short delay
+      setTimeout(() => setPdfProgress(0), 500);
     }
   };
 
@@ -243,7 +263,7 @@ const Editor = () => {
       {/* Top Bar */}
       <header className="h-14 border-b bg-card/80 backdrop-blur-xl flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")} disabled={isSaving}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/")} disabled={isSaving || isGeneratingPDF}>
             <ChevronLeft className="w-5 h-5" />
           </Button>
 
@@ -253,7 +273,7 @@ const Editor = () => {
                 value={project.title}
                 onChange={(e) => updateProject(project.id, { title: e.target.value })}
                 className="font-semibold bg-transparent border-none h-8 w-48"
-                disabled={isSaving}
+                disabled={isSaving || isGeneratingPDF}
               />
               <span className="text-xs text-muted-foreground">
                 {project.calendarType === "wall" ? "Wall" : "Desk"} •{" "}
@@ -317,7 +337,7 @@ const Editor = () => {
                 setTimeout(() => setSaveProgress(0), 500);
               }
             }}
-            disabled={!project || isSaving}
+            disabled={!project || isSaving || isGeneratingPDF}
           >
             <Save className="w-4 h-4 mr-2" />
             {isSaving ? "Saving..." : "Save"}
@@ -327,7 +347,7 @@ const Editor = () => {
             variant="default"
             size="sm"
             onClick={() => setPreviewMode(true)}
-            disabled={!project || isSaving}
+            disabled={!project || isSaving || isGeneratingPDF}
           >
             <Eye className="w-4 h-4 mr-2" />
             Preview
@@ -337,10 +357,10 @@ const Editor = () => {
             variant="default"
             size="sm"
             onClick={handleDownloadPDF}
-            disabled={!project || isSaving}
+            disabled={!project || isSaving || isGeneratingPDF}
           >
             <Download className="w-4 h-4 mr-2" />
-            Download PDF
+            {isGeneratingPDF ? "Generating..." : "Download PDF"}
           </Button>
         </div>
       </header>
@@ -368,9 +388,32 @@ const Editor = () => {
         </div>
       )}
 
+      {/* PDF Generation Overlay */}
+      {isGeneratingPDF && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border rounded-lg shadow-lg p-6 w-full max-w-md mx-4">
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold mb-2">Membuat PDF...</h3>
+                <p className="text-sm text-muted-foreground">
+                  Mohon tunggu, jangan tutup halaman ini
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Progress value={pdfProgress} className="h-3" />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Progress</span>
+                  <span>{Math.round(pdfProgress)}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Editor Area */}
       {project && currentPage ? (
-        <div className={cn("flex-1 flex overflow-hidden", isSaving && "pointer-events-none opacity-50")}>
+        <div className={cn("flex-1 flex overflow-hidden", (isSaving || isGeneratingPDF) && "pointer-events-none opacity-50")}>
           {/* Left Panel - Image Library */}
           <div className="w-64 border-r bg-card/50 overflow-hidden flex flex-col shrink-0 hidden md:flex">
             <ImagePanel />
@@ -385,7 +428,7 @@ const Editor = () => {
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => handlePageChange("prev")}
-                disabled={activePageIndex === 0 || isSaving}
+                disabled={activePageIndex === 0 || isSaving || isGeneratingPDF}
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
@@ -402,7 +445,7 @@ const Editor = () => {
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => handlePageChange("next")}
-                disabled={activePageIndex === project.months.length - 1 || isSaving}
+                disabled={activePageIndex === project.months.length - 1 || isSaving || isGeneratingPDF}
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
@@ -412,14 +455,14 @@ const Editor = () => {
                 {project.months.map((page, index) => (
                   <button
                     key={index}
-                    onClick={() => !isSaving && setActivePage(index)}
-                    disabled={isSaving}
+                    onClick={() => !isSaving && !isGeneratingPDF && setActivePage(index)}
+                    disabled={isSaving || isGeneratingPDF}
                     className={cn(
                       "px-1.5 py-0.5 text-[10px] rounded transition-colors shrink-0 min-w-[24px]",
                       index === activePageIndex
                         ? "bg-primary text-primary-foreground"
                         : "bg-secondary hover:bg-secondary/80",
-                      isSaving && "opacity-50 cursor-not-allowed"
+                      (isSaving || isGeneratingPDF) && "opacity-50 cursor-not-allowed"
                     )}
                   >
                     {page.month === "cover" ? "C" : index}
@@ -1071,6 +1114,209 @@ const PropertiesPanel = () => {
           </div>
         </div>
       )}
+
+      {/* Signature Settings */}
+      <Accordion type="single" collapsible defaultValue="" className="w-full">
+        <AccordionItem value="signature" className="border-none">
+          <AccordionTrigger className="py-0 hover:no-underline">
+            <h3 className="font-semibold flex items-center gap-2">
+              <FileText className="w-4 h-4" />
+              Signature
+            </h3>
+          </AccordionTrigger>
+          <AccordionContent>
+            <div className="space-y-4 pt-3">
+              {/* Signature Image Upload */}
+              <div>
+                <label className="text-sm text-muted-foreground mb-2 block">Signature Image</label>
+                {project.signatureImageUrl ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-2 bg-secondary/30 rounded-lg">
+                      <img
+                        src={project.signatureImageUrl}
+                        alt="Signature"
+                        className="w-16 h-16 object-contain rounded border"
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium">Signature Image</p>
+                        <p className="text-xs text-muted-foreground">
+                          Ditampilkan di semua halaman
+                        </p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => {
+                          updateProject(project.id, {
+                            signatureImageUrl: null,
+                            signaturePosition: undefined,
+                            signatureSize: undefined,
+                          });
+                        }}
+                      >
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file) return;
+
+                        try {
+                          const assetId = uuidv4();
+                          const finalUrl = await uploadImageToStorage(file, assetId);
+                          
+                          // Set default position (bottom-right) and size
+                          updateProject(project.id, {
+                            signatureImageUrl: finalUrl,
+                            signaturePosition: { x: 0.85, y: 0.9 },
+                            signatureSize: { width: 0.12, height: 0.08 },
+                          });
+
+                          toast({
+                            title: "Signature uploaded",
+                            description: "Signature akan ditampilkan di semua halaman",
+                          });
+                        } catch (error) {
+                          console.error("Failed to upload signature:", error);
+                          toast({
+                            title: "Error",
+                            description: "Gagal mengupload signature. Silakan coba lagi.",
+                            variant: "destructive",
+                          });
+                        }
+                        
+                        // Reset input
+                        e.target.value = '';
+                      }}
+                      className="cursor-pointer"
+                    />
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Upload gambar signature untuk ditampilkan di semua halaman
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Signature Position */}
+              {project.signatureImageUrl && (
+                <>
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-2 block">
+                      Position
+                    </label>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-muted-foreground">X (Horizontal)</span>
+                          <span className="text-xs font-mono">
+                            {((project.signaturePosition?.x || 0.85) * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                        <Slider
+                          value={[project.signaturePosition?.x || 0.85]}
+                          onValueChange={([value]) => {
+                            updateProject(project.id, {
+                              signaturePosition: {
+                                x: value,
+                                y: project.signaturePosition?.y || 0.9,
+                              },
+                            });
+                          }}
+                          min={0}
+                          max={1}
+                          step={0.01}
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-muted-foreground">Y (Vertical)</span>
+                          <span className="text-xs font-mono">
+                            {((project.signaturePosition?.y || 0.9) * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                        <Slider
+                          value={[project.signaturePosition?.y || 0.9]}
+                          onValueChange={([value]) => {
+                            updateProject(project.id, {
+                              signaturePosition: {
+                                x: project.signaturePosition?.x || 0.85,
+                                y: value,
+                              },
+                            });
+                          }}
+                          min={0}
+                          max={1}
+                          step={0.01}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Signature Size */}
+                  <div>
+                    <label className="text-sm text-muted-foreground mb-2 block">
+                      Size
+                    </label>
+                    <div className="space-y-3">
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-muted-foreground">Width</span>
+                          <span className="text-xs font-mono">
+                            {((project.signatureSize?.width || 0.12) * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                        <Slider
+                          value={[project.signatureSize?.width || 0.12]}
+                          onValueChange={([value]) => {
+                            updateProject(project.id, {
+                              signatureSize: {
+                                width: value,
+                                height: project.signatureSize?.height || 0.08,
+                              },
+                            });
+                          }}
+                          min={0.01}
+                          max={0.5}
+                          step={0.01}
+                        />
+                      </div>
+                      <div>
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-xs text-muted-foreground">Height</span>
+                          <span className="text-xs font-mono">
+                            {((project.signatureSize?.height || 0.08) * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                        <Slider
+                          value={[project.signatureSize?.height || 0.08]}
+                          onValueChange={([value]) => {
+                            updateProject(project.id, {
+                              signatureSize: {
+                                width: project.signatureSize?.width || 0.12,
+                                height: value,
+                              },
+                            });
+                          }}
+                          min={0.01}
+                          max={0.5}
+                          step={0.01}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
+            </div>
+          </AccordionContent>
+        </AccordionItem>
+      </Accordion>
     </div>
   );
 };

@@ -375,6 +375,26 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
             </div>
           )}
         </div>
+
+        {/* Signature - displayed on all pages (positioned relative to entire page) */}
+        {project.signatureImageUrl && (
+          <div
+            className="absolute pointer-events-none z-20"
+            style={{
+              left: `${(project.signaturePosition?.x || 0.85) * 100}%`,
+              top: `${(project.signaturePosition?.y || 0.9) * 100}%`,
+              width: `${(project.signatureSize?.width || 0.12) * 100}%`,
+              height: `${(project.signatureSize?.height || 0.08) * 100}%`,
+              transform: 'translate(-50%, -50%)',
+            }}
+          >
+            <img
+              src={project.signatureImageUrl}
+              alt="Signature"
+              className="w-full h-full object-contain"
+            />
+          </div>
+        )}
       </motion.div>
     </div>
   );
