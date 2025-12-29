@@ -284,7 +284,7 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                     <div key={i} className={cn(
                       "font-medium",
                       i === 0 ? "text-red-500" : "text-muted-foreground" // Minggu (index 0) is red
-                    )}>{d}</div>
+                    )} style={{ fontFamily: fontFamily }}>{d}</div>
                   ))}
                         {days.map((day, i) => {
                           // Calculate the actual day of week (0 = Sunday, 6 = Saturday)
@@ -311,32 +311,32 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                       {/* Holidays info below calendar */}
                       {groupedHolidays.length > 0 && (
                         <div className="mt-1 pt-1 border-t border-border/50 overflow-visible">
-                          <div className="text-[10px] leading-tight space-y-0.5 text-left" style={{ fontFamily: fontFamily }}>
-                            {groupedHolidays.map((group, hIdx) => {
-                              const monthNameShort = MONTH_NAMES_SHORT[monthNum - 1];
-                              // Format dates: if consecutive, show range (e.g., "16-17"), otherwise show single date
-                              let dateStr: string;
-                              if (group.dates.length === 1) {
-                                dateStr = `${group.dates[0]} ${monthNameShort}`;
-                              } else {
-                                // Check if dates are consecutive
-                                const sortedDates = [...group.dates].sort((a, b) => a - b);
-                                const isConsecutive = sortedDates.every((d, idx) => 
-                                  idx === 0 || d === sortedDates[idx - 1] + 1
-                                );
-                                if (isConsecutive) {
-                                  dateStr = `${sortedDates[0]}-${sortedDates[sortedDates.length - 1]} ${monthNameShort}`;
+                            <div className="text-[10px] leading-tight space-y-0.5 text-left" style={{ fontFamily: fontFamily }}>
+                              {groupedHolidays.map((group, hIdx) => {
+                                const monthNameShort = MONTH_NAMES_SHORT[monthNum - 1];
+                                // Format dates: if consecutive, show range (e.g., "16-17"), otherwise show single date
+                                let dateStr: string;
+                                if (group.dates.length === 1) {
+                                  dateStr = `${group.dates[0]} ${monthNameShort}`;
                                 } else {
-                                  dateStr = sortedDates.map(d => `${d} ${monthNameShort}`).join(', ');
+                                  // Check if dates are consecutive
+                                  const sortedDates = [...group.dates].sort((a, b) => a - b);
+                                  const isConsecutive = sortedDates.every((d, idx) => 
+                                    idx === 0 || d === sortedDates[idx - 1] + 1
+                                  );
+                                  if (isConsecutive) {
+                                    dateStr = `${sortedDates[0]}-${sortedDates[sortedDates.length - 1]} ${monthNameShort}`;
+                                  } else {
+                                    dateStr = sortedDates.map(d => `${d} ${monthNameShort}`).join(', ');
+                                  }
                                 }
-                              }
-                              return (
-                                <div key={hIdx} className="text-foreground/80">
-                                  <span className="text-red-500 font-semibold">{dateStr}:</span> {group.name}
-                                </div>
-                              );
-                            })}
-                          </div>
+                                return (
+                                  <div key={hIdx} className="text-foreground/80" style={{ fontFamily: fontFamily }}>
+                                    <span className="text-red-500 font-semibold">{dateStr}:</span> {group.name}
+                                  </div>
+                                );
+                              })}
+                            </div>
                         </div>
                       )}
                     </div>
@@ -416,13 +416,14 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
       </Button>
 
       {/* Book Container */}
-      <div className="perspective-2000 w-full px-8" style={{ maxWidth: "min(900px, 90vw)" }}>
+      <div className="perspective-2000 w-full px-8 flex items-center justify-center">
         <div
           className="relative mx-auto shadow-heavy rounded-sm overflow-hidden"
           style={{
             aspectRatio: `${project.orientation === "portrait" ? project.format.width : project.format.height} / ${project.orientation === "portrait" ? project.format.height : project.format.width}`,
-            maxHeight: "min(85vh, 900px)",
-            maxWidth: "100%",
+            width: "100%",
+            maxWidth: "900px",
+            maxHeight: "85vh",
           }}
         >
           {/* Current Page */}

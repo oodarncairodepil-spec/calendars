@@ -481,7 +481,7 @@ const Editor = () => {
 
             {/* Canvas Area */}
             <div className="flex-1 overflow-hidden p-6 bg-canvas flex items-center justify-center">
-              <div className="w-full h-full flex items-center justify-center" style={{ maxWidth: "min(900px, 90vw)", maxHeight: "min(85vh, 900px)" }}>
+              <div className="w-full h-full flex items-center justify-center" style={{ maxWidth: "900px", maxHeight: "85vh", width: "100%" }}>
                 <EditorCanvas key={`${project.id}-${project.fontFamily}`} project={project} pageIndex={activePageIndex} hideEditorBorders={isGeneratingPDF} />
               </div>
             </div>
