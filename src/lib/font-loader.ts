@@ -24,10 +24,20 @@ export const waitForFonts = (timeout: number = 3000): Promise<void> => {
     // If document.fonts is available, wait for fonts to load
     if (typeof document !== 'undefined' && document.fonts && document.fonts.ready) {
       // #region agent log
+      const loadedFontsBefore = getLoadedFonts();
       logFontDebug('font-loader.ts:waitForFonts', 'Before fonts.ready check', {
-        loadedFontsBefore: getLoadedFonts(),
+        loadedFontsBefore: loadedFontsBefore,
+        loadedFontsCount: loadedFontsBefore.length,
         fontsStatus: document.fonts.status,
+        fontsStatusText: document.fonts.status === 'loading' ? 'loading' : document.fonts.status === 'loaded' ? 'loaded' : 'unloaded',
       }, 'A');
+      
+      // Log each loaded font individually for debugging
+      if (loadedFontsBefore.length > 0) {
+        console.log(`[Font Debug ${getEnvironment()}] Loaded fonts list:`, loadedFontsBefore);
+      } else {
+        console.log(`[Font Debug ${getEnvironment()}] No fonts loaded yet`);
+      }
       // #endregion
       
       // Race between fonts loading and timeout
@@ -49,10 +59,23 @@ export const waitForFonts = (timeout: number = 3000): Promise<void> => {
           const elapsed = Date.now() - startTime;
           
           // #region agent log
+          const loadedFontsAfter = getLoadedFonts();
           logFontDebug('font-loader.ts:waitForFonts', 'Fonts ready resolved', {
             elapsed,
-            loadedFontsAfter: getLoadedFonts(),
+            loadedFontsAfter: loadedFontsAfter,
+            loadedFontsCount: loadedFontsAfter.length,
+            fontsStatus: document.fonts.status,
           }, 'A');
+          
+          // Log each loaded font individually
+          console.log(`[Font Debug ${getEnvironment()}] Fonts after ready:`, loadedFontsAfter);
+          
+          // Check for specific custom fonts
+          const customFonts = ['Lovely Coffee', 'Cadillac', 'Freebooter Script'];
+          customFonts.forEach(fontName => {
+            const found = loadedFontsAfter.some(f => f.toLowerCase().includes(fontName.toLowerCase()));
+            console.log(`[Font Debug ${getEnvironment()}] Custom font "${fontName}": ${found ? 'LOADED' : 'NOT FOUND'}`);
+          });
           // #endregion
           
           // Small delay to ensure all fonts are fully loaded

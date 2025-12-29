@@ -66,20 +66,38 @@ export const EditorCanvas = ({ project, pageIndex, hideEditorBorders = false }: 
   
   // #region agent log
   useEffect(() => {
+    const allLoadedFonts = getLoadedFonts();
+    const fontCheck = checkFontLoaded(fontFamily);
+    
     logFontDebug('EditorCanvas.tsx:fontFamily', 'Font family selected', {
       fontName: selectedFont.name,
       fontFamily: fontFamily,
       projectFontFamily: project.fontFamily,
       fontsLoadedState: fontsLoaded,
+      fontCheckResult: fontCheck,
+      allLoadedFonts: allLoadedFonts,
+      fontInLoadedList: allLoadedFonts.some(f => f.toLowerCase().includes(selectedFont.name.toLowerCase())),
+      fontFamilyString: `Applied: "${fontFamily}"`,
     }, 'B');
     
-    // Check if font is actually loaded
-    const fontCheck = checkFontLoaded(fontFamily);
-    logFontDebug('EditorCanvas.tsx:fontCheck', 'Font loaded check result', {
-      fontFamily: fontFamily,
-      ...fontCheck,
-      allLoadedFonts: getLoadedFonts(),
-    }, 'B');
+    // Additional detailed check
+    if (typeof document !== 'undefined' && document.fonts) {
+      const fontName = fontFamily.split(',')[0].trim().replace(/['"]/g, '');
+      const checkWithQuotes = document.fonts.check(`12px "${fontName}"`);
+      const checkWithoutQuotes = document.fonts.check(`12px ${fontName}`);
+      const checkWithFamily = document.fonts.check(`12px ${fontFamily}`);
+      
+      logFontDebug('EditorCanvas.tsx:fontCheck', 'Font loaded check result', {
+        fontFamily: fontFamily,
+        extractedFontName: fontName,
+        checkWithQuotes: checkWithQuotes,
+        checkWithoutQuotes: checkWithoutQuotes,
+        checkWithFamily: checkWithFamily,
+        fontStatus: document.fonts.status,
+        allLoadedFonts: allLoadedFonts,
+        fontCheck: fontCheck,
+      }, 'B');
+    }
   }, [fontFamily, selectedFont.name, project.fontFamily, fontsLoaded]);
   // #endregion
 

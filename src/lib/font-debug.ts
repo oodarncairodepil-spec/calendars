@@ -48,7 +48,41 @@ export const logFontDebug = (
   };
 
   // Always log to console (works on both localhost and Vercel)
-  console.log(`[Font Debug ${getEnvironment()}]`, message, logData);
+  const env = getEnvironment();
+  
+  // Log main message
+  console.log(`[Font Debug ${env}] ${message}`);
+  
+  // Log key data fields separately for better readability
+  if (logData.data.fontName) {
+    console.log(`  → Font Name: "${logData.data.fontName}"`);
+  }
+  if (logData.data.fontFamily) {
+    console.log(`  → Font Family String: "${logData.data.fontFamily}"`);
+  }
+  if (logData.data.fontCheck || logData.data.fontCheckResult) {
+    const check = logData.data.fontCheck || logData.data.fontCheckResult;
+    console.log(`  → Font Loaded: ${check.loaded ? 'YES ✓' : 'NO ✗'}`);
+    console.log(`  → Extracted Font Name: "${check.fontName || check.extractedFontName || 'unknown'}"`);
+    if (check.checks) {
+      console.log(`  → Check with quotes: ${check.checks.withQuotes ? 'YES' : 'NO'}`);
+      console.log(`  → Check without quotes: ${check.checks.withoutQuotes ? 'YES' : 'NO'}`);
+    }
+  }
+  if (logData.data.allLoadedFonts) {
+    const fonts = logData.data.allLoadedFonts;
+    console.log(`  → Total Loaded Fonts: ${fonts.length}`);
+    if (fonts.length > 0) {
+      console.log(`  → Loaded Fonts List:`, fonts);
+    }
+  }
+  if (logData.data.loadedFontsBefore || logData.data.loadedFontsAfter) {
+    const fonts = logData.data.loadedFontsBefore || logData.data.loadedFontsAfter;
+    console.log(`  → Loaded Fonts (${fonts.length}):`, fonts);
+  }
+  
+  // Log full data object for detailed inspection
+  console.log(`  → Full Data:`, logData.data);
   
   // Also try to send to debug server (only works on localhost when server is running)
   fetch(LOG_ENDPOINT, {
