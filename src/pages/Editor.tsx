@@ -36,6 +36,7 @@ import { PageFlipBook } from "@/components/preview/PageFlipBook";
 import { saveState } from "@/lib/storage";
 import jsPDF from "jspdf";
 import { toPng } from "html-to-image";
+import { Progress } from "@/components/ui/progress";
 
 const Editor = () => {
   const { projectId } = useParams();
@@ -61,6 +62,8 @@ const Editor = () => {
   const [newProjectType, setNewProjectType] = useState<CalendarType>("wall");
   const [newProjectFormat, setNewProjectFormat] = useState(FORMAT_PRESETS[0]);
   const [newProjectOrientation, setNewProjectOrientation] = useState<"portrait" | "landscape">("portrait");
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveProgress, setSaveProgress] = useState(0);
 
   // Track previous projectId to detect actual changes
   const prevProjectIdRef = useRef<string | undefined>(projectId);
@@ -240,7 +243,7 @@ const Editor = () => {
       {/* Top Bar */}
       <header className="h-14 border-b bg-card/80 backdrop-blur-xl flex items-center justify-between px-4 shrink-0">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate("/")}>
+          <Button variant="ghost" size="icon" onClick={() => navigate("/")} disabled={isSaving}>
             <ChevronLeft className="w-5 h-5" />
           </Button>
 
@@ -250,6 +253,7 @@ const Editor = () => {
                 value={project.title}
                 onChange={(e) => updateProject(project.id, { title: e.target.value })}
                 className="font-semibold bg-transparent border-none h-8 w-48"
+                disabled={isSaving}
               />
               <span className="text-xs text-muted-foreground">
                 {project.calendarType === "wall" ? "Wall" : "Desk"} •{" "}
@@ -267,33 +271,63 @@ const Editor = () => {
             variant="outline"
             size="sm"
             onClick={async () => {
+              if (isSaving) return;
+              
+              setIsSaving(true);
+              setSaveProgress(0);
+              
+              // Simulate progress (0-90%) during save
+              const progressInterval = setInterval(() => {
+                setSaveProgress((prev) => {
+                  if (prev >= 90) {
+                    clearInterval(progressInterval);
+                    return 90;
+                  }
+                  return prev + 10;
+                });
+              }, 600); // Update every 600ms, reaching 90% in ~5.4 seconds
+              
               try {
                 const snapshot = getSnapshot();
                 await saveState(snapshot);
+                
+                // Complete progress
+                clearInterval(progressInterval);
+                setSaveProgress(100);
+                
+                // Wait a bit to show 100% completion
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
                 toast({
                   title: "Saved",
                   description: "Project has been saved successfully.",
                 });
               } catch (error) {
                 console.error("Failed to save:", error);
+                clearInterval(progressInterval);
+                setSaveProgress(0);
                 toast({
                   title: "Error",
                   description: "Failed to save project. Please try again.",
                   variant: "destructive",
                 });
+              } finally {
+                setIsSaving(false);
+                // Reset progress after a short delay
+                setTimeout(() => setSaveProgress(0), 500);
               }
             }}
-            disabled={!project}
+            disabled={!project || isSaving}
           >
             <Save className="w-4 h-4 mr-2" />
-            Save
+            {isSaving ? "Saving..." : "Save"}
           </Button>
 
           <Button
             variant="default"
             size="sm"
             onClick={() => setPreviewMode(true)}
-            disabled={!project}
+            disabled={!project || isSaving}
           >
             <Eye className="w-4 h-4 mr-2" />
             Preview
@@ -303,7 +337,7 @@ const Editor = () => {
             variant="default"
             size="sm"
             onClick={handleDownloadPDF}
-            disabled={!project}
+            disabled={!project || isSaving}
           >
             <Download className="w-4 h-4 mr-2" />
             Download PDF
@@ -311,9 +345,32 @@ const Editor = () => {
         </div>
       </header>
 
+      {/* Saving Overlay */}
+      {isSaving && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="bg-card border rounded-lg shadow-lg p-6 w-full max-w-md mx-4">
+            <div className="space-y-4">
+              <div className="text-center">
+                <h3 className="text-lg font-semibold mb-2">Menyimpan Proyek...</h3>
+                <p className="text-sm text-muted-foreground">
+                  Mohon tunggu, jangan tutup halaman ini
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Progress value={saveProgress} className="h-3" />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Progress</span>
+                  <span>{Math.round(saveProgress)}%</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Main Editor Area */}
       {project && currentPage ? (
-        <div className="flex-1 flex overflow-hidden">
+        <div className={cn("flex-1 flex overflow-hidden", isSaving && "pointer-events-none opacity-50")}>
           {/* Left Panel - Image Library */}
           <div className="w-64 border-r bg-card/50 overflow-hidden flex flex-col shrink-0 hidden md:flex">
             <ImagePanel />
@@ -328,7 +385,7 @@ const Editor = () => {
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => handlePageChange("prev")}
-                disabled={activePageIndex === 0}
+                disabled={activePageIndex === 0 || isSaving}
               >
                 <ChevronLeft className="w-4 h-4" />
               </Button>
@@ -345,7 +402,7 @@ const Editor = () => {
                 size="icon"
                 className="h-8 w-8"
                 onClick={() => handlePageChange("next")}
-                disabled={activePageIndex === project.months.length - 1}
+                disabled={activePageIndex === project.months.length - 1 || isSaving}
               >
                 <ChevronRight className="w-4 h-4" />
               </Button>
@@ -355,12 +412,14 @@ const Editor = () => {
                 {project.months.map((page, index) => (
                   <button
                     key={index}
-                    onClick={() => setActivePage(index)}
+                    onClick={() => !isSaving && setActivePage(index)}
+                    disabled={isSaving}
                     className={cn(
                       "px-1.5 py-0.5 text-[10px] rounded transition-colors shrink-0 min-w-[24px]",
                       index === activePageIndex
                         ? "bg-primary text-primary-foreground"
-                        : "bg-secondary hover:bg-secondary/80"
+                        : "bg-secondary hover:bg-secondary/80",
+                      isSaving && "opacity-50 cursor-not-allowed"
                     )}
                   >
                     {page.month === "cover" ? "C" : index}
@@ -641,8 +700,6 @@ const PropertiesPanel = () => {
     getAssetById,
     selectedFrameType,
     setSelectedFrame,
-    imageFit,
-    setImageFit,
     updateProject,
   } = useAppStore();
 
@@ -765,7 +822,12 @@ const PropertiesPanel = () => {
               }}
             >
               <SelectTrigger>
-                <SelectValue />
+                <SelectValue>
+                  {(() => {
+                    const selectedFont = FONT_PRESETS.find(f => f.name === (project.fontFamily || 'Inter')) || FONT_PRESETS[0];
+                    return <span style={{ fontFamily: selectedFont.family }}>{selectedFont.displayName}</span>;
+                  })()}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {FONT_PRESETS.map((font) => (
@@ -975,8 +1037,22 @@ const PropertiesPanel = () => {
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground mb-2 block">Fit Mode</label>
-              <Select value={imageFit} onValueChange={(v) => setImageFit(v as "cover" | "contain" | "stretch")}>
+              <label className="text-sm text-muted-foreground mb-2 block">
+                Fit Mode {page.month === 'cover' ? '(Cover Page)' : '(Month Pages)'}
+              </label>
+              <Select 
+                value={page.month === 'cover' 
+                  ? (project.coverImageFit || 'cover') 
+                  : (project.monthsImageFit || 'cover')
+                } 
+                onValueChange={(v) => {
+                  if (page.month === 'cover') {
+                    updateProject(project.id, { coverImageFit: v as "cover" | "contain" | "stretch" });
+                  } else {
+                    updateProject(project.id, { monthsImageFit: v as "cover" | "contain" | "stretch" });
+                  }
+                }}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -986,6 +1062,11 @@ const PropertiesPanel = () => {
                   <SelectItem value="stretch">Stretch</SelectItem>
                 </SelectContent>
               </Select>
+              {page.month !== 'cover' && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Akan diterapkan ke semua halaman bulan
+                </p>
+              )}
             </div>
           </div>
         </div>

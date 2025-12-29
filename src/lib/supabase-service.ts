@@ -20,6 +20,8 @@ interface DbProject {
   months_per_page?: number; // Optional for backward compatibility
   selected_group_id?: string | null; // Selected group ID for ImagePanel
   font_family?: string | null; // Font family for the calendar
+  cover_image_fit?: string | null; // Image fit mode for cover page
+  months_image_fit?: string | null; // Image fit mode for all month pages
   created_at: string;
   updated_at: string;
 }
@@ -57,6 +59,8 @@ const dbProjectToProject = (db: DbProject): CalendarProject => ({
   monthsPerPage: (db as any).months_per_page || 1, // Default to 1 if not present
   selectedGroupId: (db as any).selected_group_id || null, // Selected group ID for ImagePanel
   fontFamily: (db as any).font_family || 'Inter', // Default to Inter if not present
+  coverImageFit: (db.cover_image_fit as 'cover' | 'contain' | 'stretch') || 'cover', // Default to cover if not present
+  monthsImageFit: (db.months_image_fit as 'cover' | 'contain' | 'stretch') || 'cover', // Default to cover if not present
   createdAt: db.created_at,
   updatedAt: db.updated_at,
 });
@@ -73,6 +77,8 @@ const projectToDbProject = (project: CalendarProject): Omit<DbProject, 'id' | 'c
   months_per_page: project.monthsPerPage || 1,
   selected_group_id: project.selectedGroupId || null,
   font_family: project.fontFamily || 'Inter',
+  cover_image_fit: project.coverImageFit || 'cover',
+  months_image_fit: project.monthsImageFit || 'cover',
 });
 
 // Convert database asset to app asset

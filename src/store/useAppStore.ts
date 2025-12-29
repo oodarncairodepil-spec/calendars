@@ -47,8 +47,8 @@ interface AppState {
   getAssetById: (id: string) => ImageAsset | undefined;
   getGroupById: (id: string) => ImageGroup | undefined;
   
-  // Project actions
-  createProject: (title: string, type: CalendarType, format: { width: number; height: number; unit: 'mm' | 'px' }, orientation: 'portrait' | 'landscape') => string;
+    // Project actions
+    createProject: (title: string, type: CalendarType, format: { width: number; height: number; unit: 'mm' | 'px' }, orientation: 'portrait' | 'landscape', monthsPerPage?: 1 | 2) => string;
   updateProject: (id: string, updates: Partial<CalendarProject>) => void;
   deleteProject: (id: string) => void;
   setActiveProject: (id: string | null) => void;
@@ -223,6 +223,8 @@ export const useAppStore = create<AppState>()(
               months: createDefaultMonthPages(2),
               monthsPerPage: 2, // Default to 2 months per page
               fontFamily: 'Inter', // Default font
+              coverImageFit: 'cover', // Default fit mode for cover page
+              monthsImageFit: 'cover', // Default fit mode for months pages
         createdAt: now,
         updatedAt: now,
       };

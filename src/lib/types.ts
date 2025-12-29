@@ -72,6 +72,8 @@ export interface CalendarProject {
   monthsPerPage: 1 | 2; // Number of months to display per page
   selectedGroupId?: string | null; // Selected group ID for ImagePanel
   fontFamily?: string; // Font family for the calendar (e.g., 'Inter', 'Sora', 'Roboto', etc.)
+  coverImageFit?: ImageFit; // Image fit mode for cover page
+  monthsImageFit?: ImageFit; // Image fit mode for all month pages
   createdAt: string;
   updatedAt: string;
 }

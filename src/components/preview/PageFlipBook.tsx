@@ -26,7 +26,7 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
   const [isFlipping, setIsFlipping] = useState(false);
   const [flipDirection, setFlipDirection] = useState<"forward" | "backward">("forward");
   const [holidaysMap, setHolidaysMap] = useState<{ [month: number]: HolidayMap }>({});
-  const { getAssetById, imageFit } = useAppStore();
+  const { getAssetById } = useAppStore();
   
   // Year for holidays (default to 2026)
   const currentYear = 2026;
@@ -92,6 +92,11 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
     const assignedImage = page.assignedImageId ? getAssetById(page.assignedImageId) : null;
     const { imageFrame, calendarGridFrame } = page.layout;
     const transform = page.imageTransform;
+    
+    // Get appropriate fit mode based on page type
+    const imageFit = page.month === 'cover' 
+      ? (project.coverImageFit || 'cover')
+      : (project.monthsImageFit || 'cover');
     
     // Get margins, default to 10mm if not set
     const margins = page.margins || { top: 10, right: 10, bottom: 10, left: 10 };

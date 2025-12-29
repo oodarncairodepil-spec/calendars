@@ -47,7 +47,7 @@ interface EditorCanvasProps {
 export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
-  const { getAssetById, selectedFrameType, setSelectedFrame, updatePageLayout, imageFit } = useAppStore();
+  const { getAssetById, selectedFrameType, setSelectedFrame, updatePageLayout } = useAppStore();
   const [holidaysMap, setHolidaysMap] = useState<{ [month: number]: HolidayMap }>({});
 
   const page = project.months[pageIndex];
@@ -63,6 +63,11 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
   const assignedImage = page.assignedImageId ? getAssetById(page.assignedImageId) : null;
   const { imageFrame, calendarGridFrame } = page.layout;
   const transform = page.imageTransform;
+  
+  // Get appropriate fit mode based on page type
+  const imageFit = page.month === 'cover' 
+    ? (project.coverImageFit || 'cover')
+    : (project.monthsImageFit || 'cover');
   
   // Get margins, default to 10mm if not set
   const margins = page.margins || { top: 10, right: 10, bottom: 10, left: 10 };
