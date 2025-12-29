@@ -183,7 +183,7 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                 </div>
                 <div className="grid grid-cols-7 gap-1 text-xs text-center">
                   {DAY_NAMES_SHORT.map((d, i) => (
-                    <div key={d} className={cn(
+                    <div key={i} className={cn(
                       "font-medium",
                       i === 0 ? "text-red-500" : "text-muted-foreground" // Minggu (index 0) is red
                     )} style={{ fontFamily: fontFamily }}>{d}</div>
@@ -249,14 +249,14 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                   // Sort by date
                   monthHolidaysList.sort((a, b) => new Date(a.date).getDate() - new Date(b.date).getDate());
                   
-                  // Group holidays by name and emoji, then combine consecutive dates
-                  const groupedHolidays: Array<{ dates: number[]; name: string; emoji?: string | null }> = [];
-                  const holidayGroups = new Map<string, { dates: number[]; name: string; emoji?: string | null }>();
+                  // Group holidays by name, then combine consecutive dates
+                  const groupedHolidays: Array<{ dates: number[]; name: string }> = [];
+                  const holidayGroups = new Map<string, { dates: number[]; name: string }>();
                   
                   monthHolidaysList.forEach(holiday => {
-                    const key = `${holiday.name}|${holiday.emoji || ''}`;
+                    const key = holiday.name;
                     if (!holidayGroups.has(key)) {
-                      holidayGroups.set(key, { dates: [], name: holiday.name, emoji: holiday.emoji });
+                      holidayGroups.set(key, { dates: [], name: holiday.name });
                     }
                     const day = new Date(holiday.date).getDate();
                     holidayGroups.get(key)!.dates.push(day);
@@ -277,13 +277,13 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                       <div className="text-center mb-1">
                         <span className="font-bold text-base" style={{ fontFamily: fontFamily }}>{monthName}</span>
                       </div>
-                      <div className="grid grid-cols-7 gap-1 text-xs text-center">
-                        {DAY_NAMES_SHORT.map((d, i) => (
-                          <div key={d} className={cn(
-                            "font-medium",
-                            i === 0 ? "text-red-500" : "text-muted-foreground" // Minggu (index 0) is red
-                          )}>{d}</div>
-                        ))}
+                <div className="grid grid-cols-7 gap-1 text-xs text-center">
+                  {DAY_NAMES_SHORT.map((d, i) => (
+                    <div key={i} className={cn(
+                      "font-medium",
+                      i === 0 ? "text-red-500" : "text-muted-foreground" // Minggu (index 0) is red
+                    )}>{d}</div>
+                  ))}
                         {days.map((day, i) => {
                           // Calculate the actual day of week (0 = Sunday, 6 = Saturday)
                           // firstDay is the day of week for the 1st of the month
@@ -330,7 +330,7 @@ export const PageFlipBook = ({ project, onClose }: PageFlipBookProps) => {
                               }
                               return (
                                 <div key={hIdx} className="text-foreground/80">
-                                  <span className="text-red-500 font-semibold">{dateStr}:</span> {group.name} {group.emoji && <span>{group.emoji}</span>}
+                                  <span className="text-red-500 font-semibold">{dateStr}:</span> {group.name}
                                 </div>
                               );
                             })}

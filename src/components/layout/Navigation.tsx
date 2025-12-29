@@ -51,16 +51,16 @@ const NavLinkItem = ({ to, icon, label, isActive, onClick }: NavLinkItemProps & 
   return (
     <Link to={to} className="relative">
       {content}
-      {isActive && (
-        <motion.div
-          layoutId="nav-indicator"
-          className="absolute inset-0 bg-secondary rounded-lg -z-10"
-          initial={false}
-          transition={{ type: "spring", stiffness: 500, damping: 35 }}
-        />
-      )}
-    </Link>
-  );
+    {isActive && (
+      <motion.div
+        layoutId="nav-indicator"
+        className="absolute inset-0 bg-secondary rounded-lg -z-10"
+        initial={false}
+        transition={{ type: "spring", stiffness: 500, damping: 35 }}
+      />
+    )}
+  </Link>
+);
 };
 
 export const TopNav = () => {
@@ -93,34 +93,34 @@ export const TopNav = () => {
 
   return (
     <>
-      <header className="sticky top-0 z-50 glass-panel border-b">
-        <div className="container flex items-center justify-between h-14 px-4">
-          <div className="flex items-center gap-8">
-            {/* Logo */}
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-                <Calendar className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="font-display font-semibold text-lg hidden sm:block">
-                Calendar Maker
-              </span>
-            </Link>
+    <header className="sticky top-0 z-50 glass-panel border-b">
+      <div className="container flex items-center justify-between h-14 px-4">
+        <div className="flex items-center gap-8">
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
+              <Calendar className="w-4 h-4 text-primary-foreground" />
+            </div>
+            <span className="font-display font-semibold text-lg hidden sm:block">
+              Calendar Maker
+            </span>
+          </Link>
 
-            {/* Nav Links */}
-            <nav className="hidden md:flex items-center gap-1">
-              {links.map((link) => (
-                <NavLinkItem
-                  key={link.to}
-                  {...link}
-                  isActive={
-                    link.to === "/"
-                      ? pathname === "/"
-                      : pathname.startsWith(link.to)
-                  }
-                />
-              ))}
-            </nav>
-          </div>
+          {/* Nav Links */}
+          <nav className="hidden md:flex items-center gap-1">
+            {links.map((link) => (
+              <NavLinkItem
+                key={link.to}
+                {...link}
+                isActive={
+                  link.to === "/"
+                    ? pathname === "/"
+                    : pathname.startsWith(link.to)
+                }
+              />
+            ))}
+          </nav>
+        </div>
 
         </div>
       </header>
@@ -158,7 +158,7 @@ export const TopNav = () => {
                 </Button>
               ))
             )}
-          </div>
+      </div>
         </DialogContent>
       </Dialog>
     </>
@@ -193,11 +193,11 @@ export const MobileNav = () => {
 
   return (
     <>
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass-panel border-t">
-        <div className="flex items-center justify-around h-16 px-2">
-          {links.map((link) => {
-            const isActive =
-              link.to === "/" ? pathname === "/" : pathname.startsWith(link.to);
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-50 glass-panel border-t">
+      <div className="flex items-center justify-around h-16 px-2">
+        {links.map((link) => {
+          const isActive =
+            link.to === "/" ? pathname === "/" : pathname.startsWith(link.to);
             if (link.onClick) {
               return (
                 <button
@@ -215,24 +215,24 @@ export const MobileNav = () => {
                 </button>
               );
             }
-            return (
-              <Link
-                key={link.to}
-                to={link.to}
-                className={cn(
-                  "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors",
-                  isActive
-                    ? "text-primary"
-                    : "text-muted-foreground hover:text-foreground"
-                )}
-              >
-                {link.icon}
-                <span className="text-xs font-medium">{link.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </nav>
+          return (
+            <Link
+              key={link.to}
+              to={link.to}
+              className={cn(
+                "flex flex-col items-center gap-1 px-3 py-2 rounded-lg transition-colors",
+                isActive
+                  ? "text-primary"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {link.icon}
+              <span className="text-xs font-medium">{link.label}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
 
       {/* Project Selection Dialog */}
       <Dialog open={showProjectDialog} onOpenChange={setShowProjectDialog}>

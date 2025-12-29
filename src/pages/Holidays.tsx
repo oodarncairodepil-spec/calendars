@@ -14,7 +14,6 @@ interface Holiday {
   date: string; // ISO date string
   name: string;
   type: 'national' | 'joint_leave';
-  emoji?: string | null;
   year: number;
 }
 
@@ -29,7 +28,6 @@ const Holidays = () => {
     date: '',
     name: '',
     type: 'national' as 'national' | 'joint_leave',
-    emoji: '',
   });
   const [yearFilter, setYearFilter] = useState(2026);
 
@@ -67,7 +65,6 @@ const Holidays = () => {
         date: holiday.date,
         name: holiday.name,
         type: holiday.type,
-        emoji: holiday.emoji || '',
       });
     } else {
       setEditingHoliday(null);
@@ -75,7 +72,6 @@ const Holidays = () => {
         date: '',
         name: '',
         type: 'national',
-        emoji: '',
       });
     }
     setShowDialog(true);
@@ -88,7 +84,6 @@ const Holidays = () => {
       date: '',
       name: '',
       type: 'national',
-      emoji: '',
     });
   };
 
@@ -109,7 +104,6 @@ const Holidays = () => {
         date: formData.date,
         name: formData.name,
         type: formData.type,
-        emoji: formData.emoji || null,
         year,
       };
 
@@ -262,10 +256,7 @@ const Holidays = () => {
                               </Badge>
                             </td>
                             <td className="p-4">
-                              <div className="flex items-center gap-2">
-                                {holiday.emoji && <span>{holiday.emoji}</span>}
-                                <span>{holiday.name}</span>
-                              </div>
+                              <span>{holiday.name}</span>
                             </td>
                             <td className="p-4">
                               <div className="flex items-center justify-end gap-2">
@@ -335,15 +326,6 @@ const Holidays = () => {
                     <SelectItem value="joint_leave">Cuti Bersama</SelectItem>
                   </SelectContent>
                 </Select>
-              </div>
-              <div>
-                <label className="text-sm font-medium mb-2 block">Emoji (Optional)</label>
-                <Input
-                  value={formData.emoji}
-                  onChange={(e) => setFormData({ ...formData, emoji: e.target.value })}
-                  placeholder="🎉"
-                  maxLength={2}
-                />
               </div>
             </div>
             <DialogFooter>

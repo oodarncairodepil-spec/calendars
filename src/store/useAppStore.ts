@@ -47,7 +47,7 @@ interface AppState {
   getAssetById: (id: string) => ImageAsset | undefined;
   getGroupById: (id: string) => ImageGroup | undefined;
   
-    // Project actions
+  // Project actions
     createProject: (title: string, type: CalendarType, format: { width: number; height: number; unit: 'mm' | 'px' }, orientation: 'portrait' | 'landscape', monthsPerPage?: 1 | 2) => string;
   updateProject: (id: string, updates: Partial<CalendarProject>) => void;
   deleteProject: (id: string) => void;
@@ -118,17 +118,17 @@ const createDefaultMonthPages = (monthsPerPage: 1 | 2 = 2): MonthPage[] => {
   
   if (monthsPerPage === 1) {
     // 12 month pages (1 month per page)
-    for (let i = 1; i <= 12; i++) {
-      pages.push({
-        month: i,
-        layout: {
-          imageFrame: { ...DEFAULT_IMAGE_FRAME },
-          calendarGridFrame: { ...DEFAULT_GRID_FRAME },
-        },
-        assignedImageId: null,
-        imageTransform: DEFAULT_IMAGE_TRANSFORM,
-        showGrid: true,
-        gridStyle: DEFAULT_GRID_STYLE,
+  for (let i = 1; i <= 12; i++) {
+    pages.push({
+      month: i,
+      layout: {
+        imageFrame: { ...DEFAULT_IMAGE_FRAME },
+        calendarGridFrame: { ...DEFAULT_GRID_FRAME },
+      },
+      assignedImageId: null,
+      imageTransform: DEFAULT_IMAGE_TRANSFORM,
+      showGrid: true,
+      gridStyle: DEFAULT_GRID_STYLE,
         margins: { ...DEFAULT_MONTH_MARGINS },
       });
     }
@@ -146,7 +146,7 @@ const createDefaultMonthPages = (monthsPerPage: 1 | 2 = 2): MonthPage[] => {
         showGrid: true,
         gridStyle: DEFAULT_GRID_STYLE,
         margins: { ...DEFAULT_MONTH_MARGINS },
-      });
+    });
     }
   }
   
@@ -211,7 +211,7 @@ export const useAppStore = create<AppState>()(
     createProject: (title, type, format, orientation) => {
       const id = uuidv4();
       const now = new Date().toISOString();
-
+      
       const project: CalendarProject = {
         id,
         title,
@@ -228,13 +228,13 @@ export const useAppStore = create<AppState>()(
         createdAt: now,
         updatedAt: now,
       };
-
+      
       set(state => ({
         projects: [...state.projects, project],
         activeProjectId: id,
         activePageIndex: 0,
       }));
-
+      
       return id;
     },
     

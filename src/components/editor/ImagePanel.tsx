@@ -106,20 +106,20 @@ export const ImagePanel = () => {
       <div className="p-3 border-b space-y-3">
         {/* Group Search */}
         <div>
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+          <Input
               placeholder="Search group name..."
               value={groupSearch}
               onChange={(e) => setGroupSearch(e.target.value)}
-              className="pl-8 h-8 text-sm"
-            />
-          </div>
+            className="pl-8 h-8 text-sm"
+          />
+        </div>
           {groupSearch.trim() && filteredGroups.length > 0 && (
             <div className="mt-2 flex gap-1 flex-wrap">
               {filteredGroups.map((g) => (
-                <button
-                  key={g.id}
+            <button
+              key={g.id}
                   onClick={() => {
                     handleSelectGroup(g.id);
                     setGroupSearch("");
@@ -130,11 +130,11 @@ export const ImagePanel = () => {
                       ? "bg-primary text-primary-foreground" 
                       : "bg-secondary hover:bg-secondary/80"
                   )}
-                >
-                  {g.name}
-                </button>
-              ))}
-            </div>
+            >
+              {g.name}
+            </button>
+          ))}
+        </div>
           )}
           {groupSearch.trim() && filteredGroups.length === 0 && (
             <p className="text-xs text-muted-foreground mt-2">No groups found</p>
@@ -192,16 +192,16 @@ export const ImagePanel = () => {
               const isAssignedToCurrentPage = page?.assignedImageId === asset.id;
               
               return (
-                <motion.div
-                  key={asset.id}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleAssign(asset.id)}
-                  className={cn(
+              <motion.div
+                key={asset.id}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => handleAssign(asset.id)}
+                className={cn(
                     "aspect-square rounded overflow-hidden cursor-pointer border-2 transition-colors relative",
                     isAssignedToCurrentPage ? "border-primary ring-2 ring-primary/20" : "border-transparent hover:border-primary/50"
-                  )}
-                >
+                )}
+              >
                   <AssetImage asset={asset} />
                   
                   {/* Page assignment labels */}
@@ -229,7 +229,7 @@ export const ImagePanel = () => {
                       </Badge>
                     </div>
                   )}
-                </motion.div>
+              </motion.div>
               );
             })}
           </div>

@@ -42,9 +42,10 @@ const generateCalendarDays = (month: number, year: number = 2025) => {
 interface EditorCanvasProps {
   project: CalendarProject;
   pageIndex: number;
+  hideEditorBorders?: boolean; // Hide selection borders for PDF export
 }
 
-export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
+export const EditorCanvas = ({ project, pageIndex, hideEditorBorders = false }: EditorCanvasProps) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const { getAssetById, selectedFrameType, setSelectedFrame, updatePageLayout } = useAppStore();
@@ -117,15 +118,9 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
     
     const loadHolidays = async () => {
       const months = getMonthsToDisplay();
-      // #region agent log
-      fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:114',message:'loadHolidays started',data:{months,currentYear,pageMonth:page.month},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       for (const monthNum of months) {
         if (!holidaysMap[monthNum]) {
           const holidays = await getHolidaysForMonth(currentYear, monthNum);
-          // #region agent log
-          fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:119',message:'holidays loaded for month',data:{monthNum,holidaysCount:Object.keys(holidays).length,holidaysKeys:Object.keys(holidays).slice(0,5)},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-          // #endregion
           setHolidaysMap(prev => ({ ...prev, [monthNum]: holidays }));
         }
       }
@@ -171,10 +166,12 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
 
           {/* Image Frame */}
           <div
-            onClick={() => setSelectedFrame("image")}
+            onClick={() => !hideEditorBorders && setSelectedFrame("image")}
             className={cn(
-              "absolute overflow-hidden cursor-pointer transition-all",
-              selectedFrameType === "image" ? "ring-2 ring-primary ring-offset-2" : "hover:ring-1 hover:ring-primary/50"
+              "absolute overflow-hidden transition-all",
+              !hideEditorBorders && "cursor-pointer",
+              !hideEditorBorders && selectedFrameType === "image" && "ring-2 ring-primary ring-offset-2",
+              !hideEditorBorders && selectedFrameType !== "image" && "hover:ring-1 hover:ring-primary/50"
             )}
             style={{
               left: `${imageFrame.x * 100}%`,
@@ -206,10 +203,12 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
           {/* Calendar Grid Frame */}
           {page.showGrid && (
             <div
-              onClick={() => setSelectedFrame("grid")}
+              onClick={() => !hideEditorBorders && setSelectedFrame("grid")}
               className={cn(
-                "absolute overflow-visible cursor-pointer transition-all",
-                selectedFrameType === "grid" ? "ring-2 ring-primary ring-offset-2" : "hover:ring-1 hover:ring-primary/50"
+                "absolute overflow-visible transition-all",
+                !hideEditorBorders && "cursor-pointer",
+                !hideEditorBorders && selectedFrameType === "grid" && "ring-2 ring-primary ring-offset-2",
+                !hideEditorBorders && selectedFrameType !== "grid" && "hover:ring-1 hover:ring-primary/50"
               )}
               style={{
                 left: `${calendarGridFrame.x * 100}%`,
@@ -260,14 +259,14 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                   // Sort by date
                   monthHolidaysList.sort((a, b) => new Date(a.date).getDate() - new Date(b.date).getDate());
                   
-                  // Group holidays by name and emoji, then combine consecutive dates
-                  const groupedHolidays: Array<{ dates: number[]; name: string; emoji?: string | null }> = [];
-                  const holidayGroups = new Map<string, { dates: number[]; name: string; emoji?: string | null }>();
+                  // Group holidays by name, then combine consecutive dates
+                  const groupedHolidays: Array<{ dates: number[]; name: string }> = [];
+                  const holidayGroups = new Map<string, { dates: number[]; name: string }>();
                   
                   monthHolidaysList.forEach(holiday => {
-                    const key = `${holiday.name}|${holiday.emoji || ''}`;
+                    const key = holiday.name;
                     if (!holidayGroups.has(key)) {
-                      holidayGroups.set(key, { dates: [], name: holiday.name, emoji: holiday.emoji });
+                      holidayGroups.set(key, { dates: [], name: holiday.name });
                     }
                     const day = new Date(holiday.date).getDate();
                     holidayGroups.get(key)!.dates.push(day);
@@ -278,10 +277,6 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                   groupedHolidays.forEach(group => {
                     group.dates.sort((a, b) => a - b);
                   });
-                  
-                  // #region agent log
-                  fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:250',message:'rendering month with holidays',data:{monthNum,monthHolidaysCount:monthHolidaysList.length,monthHolidaysKeys:Object.keys(monthHolidays).slice(0,5),holidayDates:monthHolidaysList.map(h=>new Date(h.date).getDate())},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-                  // #endregion
                   
                   return (
                     <div key={monthNum} className={cn(
@@ -322,11 +317,7 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                         })}
                       </div>
                       {/* Holidays info below calendar */}
-                      {(() => {
-                        // #region agent log
-                        fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:292',message:'checking holidays render condition',data:{monthHolidaysListLength:monthHolidaysList.length,shouldRender:monthHolidaysList.length > 0},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-                        // #endregion
-                        return groupedHolidays.length > 0 ? (
+                      {groupedHolidays.length > 0 ? (
                           <div className="mt-1 pt-1 border-t border-border/50 overflow-visible">
                             <div className="text-[10px] leading-tight space-y-0.5 text-left" style={{ fontFamily: fontFamily }}>
                               {groupedHolidays.map((group, hIdx) => {
@@ -347,19 +338,15 @@ export const EditorCanvas = ({ project, pageIndex }: EditorCanvasProps) => {
                                     dateStr = sortedDates.map(d => `${d} ${monthNameShort}`).join(', ');
                                   }
                                 }
-                                // #region agent log
-                                fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'EditorCanvas.tsx:330',message:'rendering holiday item',data:{hIdx,dateStr,holidayName:group.name,holidayEmoji:group.emoji},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-                                // #endregion
                                 return (
                                   <div key={hIdx} className="text-foreground/80">
-                                    <span className="text-red-500 font-semibold">{dateStr}:</span> {group.name} {group.emoji && <span>{group.emoji}</span>}
+                                    <span className="text-red-500 font-semibold">{dateStr}:</span> {group.name}
                                   </div>
                                 );
                               })}
                             </div>
                           </div>
-                        ) : null;
-                      })()}
+                        ) : null}
                     </div>
                   );
                 })}

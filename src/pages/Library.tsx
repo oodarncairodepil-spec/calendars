@@ -151,8 +151,8 @@ const Library = () => {
           
           // Create temporary blob URL for preview
           const tempUrl = URL.createObjectURL(file);
-          const img = new window.Image();
-          
+        const img = new window.Image();
+        
           // Wait for image to load to get dimensions
           await new Promise<void>((resolve, reject) => {
             img.onload = () => resolve();
@@ -532,9 +532,6 @@ const Library = () => {
               Unassigned
             </Button>
             {(() => {
-              // #region agent log
-              fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:groups:filter',message:'Groups before deduplication',data:{totalGroups:groups.length,groups:groups.map(g=>({id:g.id,name:g.name}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run6',hypothesisId:'F'})}).catch(()=>{});
-              // #endregion
               // Remove duplicates by ID first, then by name (keep first occurrence)
               const uniqueById = groups.filter((group, index, self) => 
                 index === self.findIndex(g => g.id === group.id)
@@ -542,29 +539,26 @@ const Library = () => {
               const uniqueByName = uniqueById.filter((group, index, self) =>
                 index === self.findIndex(g => g.name === group.name)
               );
-              // #region agent log
-              fetch('http://127.0.0.1:7244/ingest/060299a5-b9d1-49ae-9e54-31d3e944dc91',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'Library.tsx:groups:filter',message:'Groups after deduplication',data:{uniqueById:uniqueById.length,uniqueByName:uniqueByName.length,uniqueGroups:uniqueByName.map(g=>({id:g.id,name:g.name}))},timestamp:Date.now(),sessionId:'debug-session',runId:'run6',hypothesisId:'F'})}).catch(()=>{});
-              // #endregion
               return uniqueByName;
             })().map((group) => (
-                <Button
-                  key={group.id}
-                  variant={filterGroup === group.id ? "secondary" : "ghost"}
-                  size="sm"
-                  onClick={() => setFilterGroup(group.id)}
-                  className="gap-2"
-                >
+              <Button
+                key={group.id}
+                variant={filterGroup === group.id ? "secondary" : "ghost"}
+                size="sm"
+                onClick={() => setFilterGroup(group.id)}
+                className="gap-2"
+              >
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: group.color || "hsl(var(--primary))" }}
+                />
+                {group.name}
                   <div
-                    className="w-2 h-2 rounded-full"
-                    style={{ backgroundColor: group.color || "hsl(var(--primary))" }}
-                  />
-                  {group.name}
-                  <div
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      deleteGroup(group.id);
-                      if (filterGroup === group.id) setFilterGroup(null);
-                    }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    deleteGroup(group.id);
+                    if (filterGroup === group.id) setFilterGroup(null);
+                  }}
                     className="ml-1 opacity-50 hover:opacity-100 cursor-pointer inline-flex items-center"
                     role="button"
                     tabIndex={0}
@@ -576,11 +570,11 @@ const Library = () => {
                         if (filterGroup === group.id) setFilterGroup(null);
                       }
                     }}
-                  >
-                    <X className="w-3 h-3" />
+                >
+                  <X className="w-3 h-3" />
                   </div>
-                </Button>
-              ))}
+              </Button>
+            ))}
           </div>
 
           <div className="flex items-center gap-2 ml-auto">
@@ -601,17 +595,17 @@ const Library = () => {
                 {allSelected ? "Deselect All" : "Select All"}
               </Button>
             )}
-            {selectedAssetIds.length > 0 && (
+          {selectedAssetIds.length > 0 && (
               <>
-                <span className="text-sm text-muted-foreground">
-                  {selectedAssetIds.length} selected
-                </span>
-                <Button variant="ghost" size="sm" onClick={clearSelection}>
-                  Clear
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
+              <span className="text-sm text-muted-foreground">
+                {selectedAssetIds.length} selected
+              </span>
+              <Button variant="ghost" size="sm" onClick={clearSelection}>
+                Clear
+              </Button>
+              <Button
+                variant="destructive"
+                size="sm"
                   onClick={async () => {
                     // Delete from Supabase (storage + database + relationships), then from store
                     for (const assetId of selectedAssetIds) {
@@ -633,15 +627,15 @@ const Library = () => {
                         deleteAsset(assetId);
                       }
                     }
-                    clearSelection();
-                  }}
-                >
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete
-                </Button>
+                  clearSelection();
+                }}
+              >
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete
+              </Button>
               </>
             )}
-          </div>
+            </div>
         </motion.div>
 
         {/* Image Grid */}
@@ -730,10 +724,10 @@ const Library = () => {
                           ? "bg-primary border-primary ring-2 ring-primary/50"
                           : "bg-background/90 border-border backdrop-blur-sm hover:bg-background"
                       )}>
-                        {isSelected && (
+                    {isSelected && (
                           <svg className="w-4 h-4 text-primary-foreground" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                          </svg>
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                        </svg>
                         )}
                       </div>
                     </div>

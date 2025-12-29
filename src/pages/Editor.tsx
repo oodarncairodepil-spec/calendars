@@ -173,8 +173,8 @@ const Editor = () => {
         // Set active page to render it
         setActivePage(i);
 
-        // Wait for DOM to update and React to re-render
-        await new Promise((resolve) => setTimeout(resolve, 300));
+        // Wait for DOM to update and React to re-render (longer wait to ensure borders are hidden)
+        await new Promise((resolve) => setTimeout(resolve, 400));
 
         // Find the canvas element using data attribute
         let canvasContainer = document.querySelector(
@@ -193,6 +193,14 @@ const Editor = () => {
         }
 
         if (canvasContainer) {
+          // Remove any remaining editor borders (ring classes) from the canvas before capture
+          const allElements = canvasContainer.querySelectorAll('*');
+          allElements.forEach((el) => {
+            const htmlEl = el as HTMLElement;
+            // Remove ring classes that might still be present
+            htmlEl.classList.remove('ring-2', 'ring-primary', 'ring-offset-2', 'hover:ring-1', 'hover:ring-primary/50');
+          });
+          
           try {
             // Capture the canvas
             const dataUrl = await toPng(canvasContainer, {
@@ -474,7 +482,7 @@ const Editor = () => {
             {/* Canvas Area */}
             <div className="flex-1 overflow-hidden p-6 bg-canvas flex items-center justify-center">
               <div className="w-full h-full max-w-5xl max-h-[calc(100vh-10rem)] flex items-center justify-center">
-                <EditorCanvas key={`${project.id}-${project.fontFamily}`} project={project} pageIndex={activePageIndex} />
+                <EditorCanvas key={`${project.id}-${project.fontFamily}`} project={project} pageIndex={activePageIndex} hideEditorBorders={isGeneratingPDF} />
               </div>
             </div>
           </div>
@@ -1066,17 +1074,42 @@ const PropertiesPanel = () => {
             </div>
 
             <div>
-              <label className="text-sm text-muted-foreground mb-2 flex items-center justify-between">
-                <span>Scale</span>
-                <span className="font-mono">{(transform.scale * 100).toFixed(0)}%</span>
-              </label>
-              <Slider
-                value={[transform.scale]}
-                onValueChange={([value]) => handleTransformChange({ scale: value })}
-                min={0.5}
-                max={3}
-                step={0.05}
-              />
+              <label className="text-sm text-muted-foreground mb-2 block">Scale</label>
+              <div className="flex items-center gap-2">
+                <Slider
+                  value={[transform.scale]}
+                  onValueChange={([value]) => handleTransformChange({ scale: value })}
+                  min={0.5}
+                  max={3}
+                  step={0.05}
+                  className="flex-1"
+                />
+                <Input
+                  type="number"
+                  min={50}
+                  max={300}
+                  step={5}
+                  value={Math.round(transform.scale * 100)}
+                  onChange={(e) => {
+                    const numValue = parseFloat(e.target.value);
+                    if (!isNaN(numValue) && numValue >= 50 && numValue <= 300) {
+                      handleTransformChange({ scale: numValue / 100 });
+                    }
+                  }}
+                  onBlur={(e) => {
+                    const numValue = parseFloat(e.target.value);
+                    if (isNaN(numValue) || numValue < 50) {
+                      handleTransformChange({ scale: 0.5 });
+                    } else if (numValue > 300) {
+                      handleTransformChange({ scale: 3 });
+                    } else {
+                      handleTransformChange({ scale: numValue / 100 });
+                    }
+                  }}
+                  className="w-16 h-8 text-sm text-center font-mono"
+                />
+                <span className="text-sm text-muted-foreground font-mono w-6">%</span>
+              </div>
             </div>
 
             <div>
